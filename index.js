@@ -27,6 +27,7 @@ const APP_ID = process.env.DISCORD_APP_ID;
 const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
+const GRAPE_GIF = process.env.GRAPE_GIF || '';
 
 const ownerId = process.env.OWNER_ID;
 const extraOwnerIds = (process.env.EXTRA_OWNER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -686,7 +687,12 @@ async function handleSlashCommand(interaction) {
     }
     case 'grape': {
       const t = interaction.options.getUser('user');
-      return interaction.reply(username + ' threw grapes at ' + (t ? '<@' + t.id + '>' : 'everyone') + '!');
+      const grapeText = username + ' threw grapes at ' + (t ? '<@' + t.id + '>' : 'everyone') + '!';
+      if (GRAPE_GIF) {
+        const grapeEmbed = new EmbedBuilder().setDescription(grapeText).setImage(GRAPE_GIF).setColor(0x5865F2);
+        return interaction.reply({ embeds: [grapeEmbed] });
+      }
+      return interaction.reply(grapeText);
     }
     case 'beat': {
       const t = interaction.options.getUser('user');
