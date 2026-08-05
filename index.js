@@ -452,7 +452,7 @@ async function handleSlashCommand(interaction) {
     to: 'ModerateMembers',
   };
   if (modPerms[commandName] && (!interaction.member || !interaction.member.permissions.has(PermissionFlagsBits[modPerms[commandName]]))) {
-    return interaction.reply({ content: 'You need the **' + modPerms[commandName] + '** permission to use this command.', ephemeral: true });
+    return interaction.reply({ content: 'You dont have perms to do that.', ephemeral: true });
   }
 
   switch (commandName) {
