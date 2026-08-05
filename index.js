@@ -123,7 +123,7 @@ class MsgAdapter {
     this.guildId = message.guild ? message.guild.id : null;
     this.channel = message.channel;
     this.channelId = message.channel.id;
-this .commandName = commandName;
+this.commandName = commandName;
     this.options = optionsAdapter;
     this.deferred = false;
   }
@@ -243,11 +243,11 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    [GatewayIntentBits.Me](https://GatewayIntentBits.Me)ssageContent,
+    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMembers,
   ],
-  partials: [Partials.Channel, [Partials.Me](https://Partials.Me)ssage]
+  partials: [Partials.Channel, Partials.Message]
 });
 
 client.once('ready', () => {
@@ -428,12 +428,12 @@ async function handleButton(interaction) {
     }
     const page = customId.startsWith('mb_read:') ? 0 : parseInt(parts[2] || '0') + (customId.startsWith('mb_next:') ? 1 : -1);
     const result = buildMailbox(userId, Math.max(0, page));
-    return interaction.update({ embeds: [result.embed], components: [result.com](https://result.com)ponents });
+    return interaction.update({ embeds: [result.embed], components: result.components });
   }
 }
 
 async function handleSlashCommand(interaction) {
-  const commandName = [interaction.com](https://interaction.com)mandName;
+  const commandName = interaction.commandName;
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
@@ -890,7 +890,7 @@ function buildMailbox(userId, page) {
 
 function handleMailbox(interaction, userId) {
   const result = buildMailbox(userId, 0);
-  return interaction.reply({ embeds: [result.embed], components: [result.com](https://result.com)ponents });
+  return interaction.reply({ embeds: [result.embed], components: result.components });
 }
 
 client.login(TOKEN);

@@ -73,7 +73,7 @@ const rest = new REST().setToken(TOKEN);
 (async () => {
   try {
     console.log('Registering ' + commands.length + ' commands...');
-    const data = await rest.put([Routes.app](https://Routes.app)licationGuildCommands(APP_ID, GUILD_ID), { body: commands });
+    const data = await rest.put(Routes.applicationGuildCommands(APP_ID, GUILD_ID), { body: commands });
     console.log('Registered ' + data.length + ' commands to guild ' + GUILD_ID);
   } catch (err) {
     console.error('Failed:', err);
