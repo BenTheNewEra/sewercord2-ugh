@@ -28,6 +28,7 @@ const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).fil
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
 const GRAPE_GIF = process.env.GRAPE_GIF || '';
+const BEAT_GIF = process.env.BEAT_GIF || '';
 
 const ownerId = process.env.OWNER_ID;
 const extraOwnerIds = (process.env.EXTRA_OWNER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -696,7 +697,12 @@ async function handleSlashCommand(interaction) {
     }
     case 'beat': {
       const t = interaction.options.getUser('user');
-      return interaction.reply(username + ' beat ' + (t ? '<@' + t.id + '>' : 'the air') + ' with a pillow!');
+      const beatText = username + ' beat ' + (t ? '<@' + t.id + '>' : 'the air') + ' with a pillow!';
+      if (BEAT_GIF) {
+        const beatEmbed = new EmbedBuilder().setDescription(beatText).setImage(BEAT_GIF).setColor(0x5865F2);
+        return interaction.reply({ embeds: [beatEmbed] });
+      }
+      return interaction.reply(beatText);
     }
 
     case 'userinfo': return handleUserInfo(interaction, interaction.options);
