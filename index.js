@@ -252,6 +252,15 @@ const client = new Client({
 });
 
 client.once('ready', () => {
+  // Clean up spam tracker periodically
+  setInterval(() => {
+    const now = Date.now();
+    for (const [userId, history] of spamTracker.entries()) {
+      if (history.length === 0 || now - history[history.length - 1].timestamp > 60000) {
+        spamTracker.delete(userId);
+      }
+    }
+  }, 60000);
   console.log(client.user.tag + ' is online!');
   console.log('Slash commands: /ping, /work, etc.');
   console.log('Dot commands: ' + PREFIX + 'ping, ' + PREFIX + 'work barista, etc.');
@@ -262,8 +271,79 @@ client.once('ready', () => {
   setInterval(trackVoiceChannels, 60000);
 });
 
+// --- Anti-Spam System ---
+const SPAM_WINDOW = 10000; // 10 seconds
+const SPAM_THRESHOLD = 3; // 3 identical messages = spam
+const SPAM_TIMEOUT_SECONDS = 60; // timeout for 1 minute on spam
+const spamTracker = new Map(); // userId -> [{ content, timestamp, msgId }]
+
+async function checkAntiSpam(message) {
+  if (message.author.bot || !message.guild) return false;
+  const userId = message.author.id;
+  const now = Date.now();
+  const content = message.content.trim().toLowerCase();
+
+  // Skip empty messages and single-char/emoji spam (handled differently)
+  if (!content || content.length < 2) return false;
+
+  // Skip mods/admins and bot owner (they can spam if they want)
+  if (message.member && message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return false;
+  if (isOwner(userId)) return false;
+
+  // Get or create user's message history
+  if (!spamTracker.has(userId)) spamTracker.set(userId, []);
+  const history = spamTracker.get(userId);
+
+  // Clean old entries outside the window
+  while (history.length > 0 && now - history[0].timestamp > SPAM_WINDOW) {
+    history.shift();
+  }
+
+  // Add current message
+  history.push({ content, timestamp: now, msgId: message.id });
+
+  // Count identical messages in the window
+  const identical = history.filter(h => h.content === content);
+
+  if (identical.length >= SPAM_THRESHOLD) {
+    try {
+      // Delete all identical messages
+      for (const h of identical) {
+        try {
+          const msg = await message.channel.messages.fetch(h.msgId).catch(() => null);
+          if (msg) await msg.delete().catch(() => {});
+        } catch {}
+      }
+
+      // Clear the user's history so they start fresh
+      spamTracker.set(userId, []);
+
+      // Timeout the spammer
+      try {
+        const member = await message.guild.members.fetch(userId);
+        if (member && member.moderatable) {
+          await member.timeout(SPAM_TIMEOUT_SECONDS * 1000, 'Spamming identical messages');
+        }
+      } catch {}
+
+      // Warn in channel
+      await message.channel.send('<@' + userId + '>, stop spamming identical messages! You\'ve been timed out for 60 seconds.').then(m => {
+        setTimeout(() => m.delete().catch(() => {}), 5000);
+      }).catch(() => {});
+
+      return true; // spam detected, stop processing
+    } catch (err) {
+      console.error('Anti-spam error:', err);
+    }
+  }
+
+  return false;
+}
+
 client.on('messageCreate', async (message) => {
   try {
+    // Anti-spam check (runs for ALL messages, not just commands)
+    if (await checkAntiSpam(message)) return;
     if (message.author.bot || !message.guild) return;
     const content = message.content.trim();
     if (!content.startsWith(PREFIX)) return;
@@ -644,6 +724,7 @@ function handleHelp(interaction) {
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },
+      { name: 'Auto-Mod', value: 'Anti-spam: 3+ identical messages = auto-delete + 60s timeout' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
     );
   return interaction.reply({ embeds: [embed] });
