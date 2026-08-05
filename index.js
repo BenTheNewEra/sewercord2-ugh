@@ -298,7 +298,7 @@ async function checkAntiSpam(message) {
   if (isOwner(userId)) return false;
 
   // Get or create user's message history
-  if (!spamTracker.has(userId)) spamTracker.set(userId, []);
+  if (!spamTracker.has(userId)) spamTracker.delete(userId);
   const history = spamTracker.get(userId);
 
   // Clean old entries outside the window
@@ -314,16 +314,14 @@ async function checkAntiSpam(message) {
 
   if (identical.length >= SPAM_THRESHOLD) {
     try {
-      // Delete all identical messages
-      for (const h of identical) {
-        try {
-          const msg = await message.channel.messages.fetch(h.msgId).catch(() => null);
-          if (msg) await msg.delete().catch(() => {});
-        } catch {}
-      }
+      // Delete all identical messages at once (bulkDelete is 1 API call vs N)
+      try {
+        const msgIds = identical.map(h => h.msgId);
+        await message.channel.bulkDelete(msgIds.filter(id => id)).catch(() => {});
+      } catch {}
 
       // Clear the user's history so they start fresh
-      spamTracker.set(userId, []);
+      spamTracker.delete(userId);
 
       // Timeout the spammer
       try {
