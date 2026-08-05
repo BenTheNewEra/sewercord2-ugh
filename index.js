@@ -133,6 +133,13 @@ this.commandName = commandName;
 
   async reply(payload) {
     this._replied = true;
+    // Dot commands can't do ephemeral - simulate it by deleting after a few seconds
+    const wantsEphemeral = typeof payload === 'object' && payload.ephemeral;
+    if (wantsEphemeral && payload.content) {
+      const sent = await this._message.reply({ content: payload.content });
+      setTimeout(() => { try { sent.delete(); } catch {} }, 5000);
+      return sent;
+    }
     await this._message.reply(payload);
   }
 
@@ -345,6 +352,8 @@ client.on('messageCreate', async (message) => {
     // Anti-spam check (runs for ALL messages, not just commands)
     if (await checkAntiSpam(message)) return;
     if (message.author.bot || !message.guild) return;
+    // Only respond to commands in the configured guild
+    if (GUILD_ID && message.guild.id !== GUILD_ID) return;
     const content = message.content.trim();
     if (!content.startsWith(PREFIX)) return;
 
@@ -461,6 +470,8 @@ function pollMessages() {
 
 client.on('interactionCreate', async (interaction) => {
   try {
+    // Only respond to interactions in the configured guild
+    if (GUILD_ID && interaction.guildId && interaction.guildId !== GUILD_ID) return;
     if (interaction.isChatInputCommand()) {
       await handleSlashCommand(interaction);
     } else if (interaction.isButton()) {
