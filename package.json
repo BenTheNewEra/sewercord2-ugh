@@ -1,0 +1,16 @@
+{
+  "name": "sewercord-bot",
+  "version": "1.0.0",
+  "description": "Discord bot with economy, leveling, shop, robbery, and fun commands",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node register.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "better-sqlite3": "^11.1.2",
+    "dotenv": "^16.4.5"
+  }
+}
