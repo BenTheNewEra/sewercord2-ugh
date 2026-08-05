@@ -161,6 +161,14 @@ function createOptionsAdapter(message, commandName, rawArgs) {
   const userMentions = [...message['mentions'].users.values()];
   const channelMentions = [...message['mentions'].channels.values()];
   let uIdx = 0, cIdx = 0;
+  // If no user mentions but message is a reply, add replied user as a mention target
+  let repliedUser = null;
+  if (userMentions.length === 0 && message.reference && message.reference.messageId) {
+    try {
+      const refMsg = message.channel.messages.cache.get(message.reference.messageId);
+      if (refMsg && refMsg.author) repliedUser = refMsg.author;
+    } catch {}
+  }
 
   const cleanArgs = rawArgs.filter(a => !/^<(@!?|#)(\d+)>$/.test(a));
   let aIdx = 0;
@@ -183,6 +191,8 @@ function createOptionsAdapter(message, commandName, rawArgs) {
     } else if (type === 'user') {
       if (uIdx < userMentions.length) {
         parsed[name] = { value: userMentions[uIdx++], type: 'user' };
+      } else if (repliedUser) {
+        parsed[name] = { value: repliedUser, type: 'user' };
       } else if (!optional) { parsed[name] = { value: null, type: 'user' }; }
     } else if (type === 'channel') {
       if (cIdx < channelMentions.length) {
@@ -721,7 +731,8 @@ async function handleSlashCommand(interaction) {
     }
     case 'grape': {
       const t = interaction.options.getUser('user');
-      const grapeText = '<@' + userId + '> is graping ' + (t ? '<@' + t.id + '>' : 'everyone') + '!';
+      if (!t) return interaction.reply('Mention someone to grape! Or reply to their message with .grape');
+      const grapeText = '<@' + userId + '> is graping <@' + t.id + '>!';
       if (GRAPE_GIFS.length > 0) {
         const gif = GRAPE_GIFS[Math.floor(Math.random() * GRAPE_GIFS.length)];
         const grapeEmbed = new EmbedBuilder().setDescription(grapeText).setImage(gif).setColor(0x5865F2);
