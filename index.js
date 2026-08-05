@@ -19,7 +19,8 @@ const {
 const {
   db, getOrCreateUser, updateUser, levelFromXP, xpForLevel, addXPAndMoney,
   getConfig, setConfig, createRobbery, getRobbery, getActiveRobberies, updateRobbery,
-  getMailbox, markMailboxRead
+  getMailbox, markMailboxRead,
+  getMarriage, createMarriage, deleteMarriage
 } = require('./database');
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -115,6 +116,7 @@ const CMD_ARGS = {
   resetuser: ['user:user'],
   setbump: ['channel:channel'],
   setbumpinterval: ['hours:int?', 'minutes:int?'],
+  marry: ['user:user'],
 };
 
 class MsgAdapter {
@@ -451,7 +453,7 @@ client.on('messageCreate', async (message) => {
       'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'userinfo', 'mailbox',
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
-      'setbump', 'setbumpinterval'
+      'setbump', 'setbumpinterval', 'marry', 'divorce'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -603,6 +605,34 @@ async function handleButton(interaction) {
     const page = customId.startsWith('mb_read:') ? 0 : parseInt(parts[2] || '0') + (customId.startsWith('mb_next:') ? 1 : -1);
     const result = buildMailbox(userId, Math.max(0, page));
     return interaction.update({ embeds: [result.embed], components: result.components });
+  }
+
+  if (customId.startsWith('marry_accept:') || customId.startsWith('marry_decline:')) {
+    const parts = customId.split(':');
+    const action = parts[0];
+    const proposerId = parts[1];
+    const targetId = parts[2];
+
+    if (interaction.user.id !== targetId) {
+      return interaction.reply({ content: 'This proposal is not for you!', ephemeral: true });
+    }
+
+    if (action === 'marry_decline') {
+      return interaction.update({ content: '\u{1F494} **' + interaction.user.username + '** declined the proposal from <@' + proposerId + '>. Maybe next time!', components: [] });
+    }
+
+    // Accept
+    const proposer = getOrCreateUser(proposerId, 'Unknown');
+    const accepter = getOrCreateUser(targetId, interaction.user.username);
+
+    const m1 = getMarriage(proposerId);
+    const m2 = getMarriage(targetId);
+    if (m1 || m2) {
+      return interaction.update({ content: '\u{1F494} Someone got married in the meantime! The proposal is cancelled.', components: [] });
+    }
+
+    createMarriage(proposerId, proposer.username, targetId, accepter.username);
+    return interaction.update({ content: '\u{1F48D} **' + proposer.username + '** and **' + accepter.username + '** are now married! Congratulations! \u{1F389}', components: [] });
   }
 }
 
@@ -822,6 +852,43 @@ async function handleSlashCommand(interaction) {
       setConfig('bump_last_sent', '1970-01-01T00:00:00.000Z');
       return interaction.reply('Bump interval set to ' + h + 'h ' + m + 'm!');
     }
+    case 'marry': {
+      const target = interaction.options.getUser('user');
+      if (!target) return interaction.reply('Mention someone to propose to!');
+      if (target.id === userId) return interaction.reply('You cannot marry yourself!');
+      if (target.bot) return interaction.reply('You cannot marry a bot!');
+
+      // Check if proposer is already married
+      const myMarriage = getMarriage(userId);
+      if (myMarriage) {
+        const spouseId = myMarriage.user1_id === userId ? myMarriage.user2_name : myMarriage.user1_name;
+        return interaction.reply('You are already married to **' + spouseId + '**! Use /divorce first.');
+      }
+
+      // Check if target is already married
+      const theirMarriage = getMarriage(target.id);
+      if (theirMarriage) {
+        const theirSpouse = theirMarriage.user1_id === target.id ? theirMarriage.user2_name : theirMarriage.user1_name;
+        return interaction.reply('**' + target.username + '** is already married to **' + theirSpouse + '**!');
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('marry_accept:' + userId + ':' + target.id).setLabel('Accept 💍').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('marry_decline:' + userId + ':' + target.id).setLabel('Decline 💔').setStyle(ButtonStyle.Danger),
+      );
+      return interaction.reply({
+        content: '**' + username + '** is proposing to **' + target.username + '**! \u{1F48D}\n\n' + target.username + ', do you accept?',
+        components: [row]
+      });
+    }
+    case 'divorce': {
+      const marriage = getMarriage(userId);
+      if (!marriage) return interaction.reply('You are not married!');
+      const spouseId = marriage.user1_id === userId ? marriage.user2_id : marriage.user1_id;
+      const spouseName = marriage.user1_id === userId ? marriage.user2_name : marriage.user1_name;
+      deleteMarriage(userId);
+      return interaction.reply('💔 **' + username + '** and **' + spouseName + '** are now divorced. It was a good run.');
+    }
   }
 
   if (!['ping', 'help', 'shop', 'bl', 'rank', 'lb', 'mailbox', ...ownerCmds].includes(commandName)) {
@@ -838,7 +905,7 @@ function handleHelp(interaction) {
     .setColor(0x5865F2)
     .setDescription('Slash: /ping, /work, etc.\nDot: ' + PREFIX + 'ping, ' + PREFIX + 'work barista, etc.\nBoth work the same way!')
     .addFields(
-      { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat' },
+      { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /marry /divorce' },
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },

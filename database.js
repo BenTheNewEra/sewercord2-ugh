@@ -57,6 +57,16 @@ db.exec(`
     channel_id TEXT,
     created_at TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS marriages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user1_id TEXT,
+    user2_id TEXT,
+    user1_name TEXT,
+    user2_name TEXT,
+    married_at TEXT,
+    UNIQUE(user1_id, user2_id)
+  );
 `);
 
 function getOrCreateUser(discordUserId, username) {
@@ -134,8 +144,26 @@ function markMailboxRead(userId) {
   db.prepare('UPDATE mailbox SET read = 1 WHERE mentioned_user_id = ?').run(userId);
 }
 
+function getMarriage(userId) {
+  return db.prepare('SELECT * FROM marriages WHERE user1_id = ? OR user2_id = ?').get(userId, userId);
+}
+
+function createMarriage(user1Id, user1Name, user2Id, user2Name) {
+  const now = new Date().toISOString();
+  // Always store lower ID first to maintain UNIQUE constraint
+  const [a, aName, b, bName] = user1Id < user2Id
+    ? [user1Id, user1Name, user2Id, user2Name]
+    : [user2Id, user2Name, user1Id, user1Name];
+  db.prepare('INSERT INTO marriages (user1_id, user2_id, user1_name, user2_name, married_at) VALUES (?, ?, ?, ?, ?)').run(a, b, aName, bName, now);
+}
+
+function deleteMarriage(userId) {
+  db.prepare('DELETE FROM marriages WHERE user1_id = ? OR user2_id = ?').run(userId, userId);
+}
+
 module.exports = {
   db, getOrCreateUser, updateUser, levelFromXP, xpForLevel, addXPAndMoney,
   getConfig, setConfig, createRobbery, getRobbery, getActiveRobberies, updateRobbery,
-  getMailbox, addMailbox, markMailboxRead
+  getMailbox, addMailbox, markMailboxRead,
+  getMarriage, createMarriage, deleteMarriage
 };

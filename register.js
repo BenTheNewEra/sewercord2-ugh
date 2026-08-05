@@ -67,6 +67,8 @@ const commands = [
   new SlashCommandBuilder().setName('resetuser').setDescription('Owner: Reset profile').addUserOption(o => o.setName('user').setDescription('User to reset').setRequired(true)),
   new SlashCommandBuilder().setName('setbump').setDescription('Owner: Set bump channel').addChannelOption(o => o.setName('channel').setDescription('Channel for bump reminders').setRequired(true)),
   new SlashCommandBuilder().setName('setbumpinterval').setDescription('Owner: Set bump interval').addIntegerOption(o => o.setName('hours').setDescription('Hours between bump reminders').setMinValue(0).setMaxValue(24)).addIntegerOption(o => o.setName('minutes').setDescription('Minutes between bump reminders').setMinValue(0).setMaxValue(59)),
+  new SlashCommandBuilder().setName('marry').setDescription('Propose to someone 💍').addUserOption(o => o.setName('user').setDescription('Who to propose to').setRequired(true)),
+  new SlashCommandBuilder().setName('divorce').setDescription('Divorce your spouse 💔'),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST().setToken(TOKEN);
