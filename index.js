@@ -443,6 +443,18 @@ async function handleSlashCommand(interaction) {
     return interaction.reply({ content: 'Owner only command!', ephemeral: true });
   }
 
+  // --- Moderation permission checks (before switch so it always runs) ---
+  const modPerms = {
+    kick: 'KickMembers',
+    ban: 'BanMembers',
+    purge: 'ManageMessages',
+    timeout: 'ModerateMembers',
+    to: 'ModerateMembers',
+  };
+  if (modPerms[commandName] && (!interaction.member || !interaction.member.permissions.has(PermissionFlagsBits[modPerms[commandName]]))) {
+    return interaction.reply({ content: 'You need the **' + modPerms[commandName] + '** permission to use this command.', ephemeral: true });
+  }
+
   switch (commandName) {
     case 'ping': return interaction.reply('Pong!');
     case 'help': return handleHelp(interaction);
@@ -512,17 +524,6 @@ async function handleSlashCommand(interaction) {
 
     case 'userinfo': return handleUserInfo(interaction, interaction.options);
     case 'mailbox': return handleMailbox(interaction, userId);
-
-    const modPerms = {
-      kick: 'KickMembers',
-      ban: 'BanMembers',
-      purge: 'ManageMessages',
-      timeout: 'ModerateMembers',
-      to: 'ModerateMembers',
-    };
-    if (modPerms[commandName] && (!interaction.member || !interaction.member.permissions.has(PermissionFlagsBits[modPerms[commandName]]))) {
-      return interaction.reply({ content: 'You need the **' + modPerms[commandName] + '** permission to use this command.', ephemeral: true });
-    }
 
     case 'kick': {
       const target = interaction.options.getUser('user');
