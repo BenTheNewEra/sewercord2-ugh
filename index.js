@@ -721,7 +721,7 @@ async function handleSlashCommand(interaction) {
     }
     case 'grape': {
       const t = interaction.options.getUser('user');
-      const grapeText = username + ' threw grapes at ' + (t ? '<@' + t.id + '>' : 'everyone') + '!';
+      const grapeText = '<@' + userId + '> is graping ' + (t ? '<@' + t.id + '>' : 'everyone') + '!';
       if (GRAPE_GIFS.length > 0) {
         const gif = GRAPE_GIFS[Math.floor(Math.random() * GRAPE_GIFS.length)];
         const grapeEmbed = new EmbedBuilder().setDescription(grapeText).setImage(gif).setColor(0x5865F2);
