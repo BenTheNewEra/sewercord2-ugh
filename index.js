@@ -671,11 +671,13 @@ async function handleSlashCommand(interaction) {
     }
     case 'rate': {
       const thing = interaction.options.getString('thing');
+      if (!thing) return interaction.reply('What should I rate? Usage: .rate something');
       const rating = Math.floor(Math.random() * 11);
       return interaction.reply('I rate ' + thing + ' a ' + rating + '/10');
     }
     case 'poll': {
       const q = interaction.options.getString('question');
+      if (!q) return interaction.reply('Ask a question! Usage: .poll your question?');
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('poll_yes').setLabel('Yes').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('poll_no').setLabel('No').setStyle(ButtonStyle.Danger),
@@ -684,6 +686,7 @@ async function handleSlashCommand(interaction) {
     }
     case 'define': {
       const w = interaction.options.getString('word');
+      if (!w) return interaction.reply('Define what? Usage: .define word');
       return interaction.reply(w + ": I'm a bot, not a dictionary. But it sounds cool!");
     }
     case 'grape': {
@@ -713,6 +716,7 @@ async function handleSlashCommand(interaction) {
     case 'kick': {
       const target = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason') || 'No reason provided';
+      if (!target) return interaction.reply('Mention a user to kick!');
       try {
         await interaction.guild['members'].kick(target, reason);
         return interaction.reply('Kicked <@' + target.id + '>. Reason: ' + reason);
@@ -721,6 +725,7 @@ async function handleSlashCommand(interaction) {
     case 'ban': {
       const target = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason') || 'No reason provided';
+      if (!target) return interaction.reply('Mention a user to ban!');
       try {
         await interaction.guild.bans.create(target, { reason });
         return interaction.reply('Banned <@' + target.id + '>. Reason: ' + reason);
@@ -749,12 +754,14 @@ async function handleSlashCommand(interaction) {
     }
     case 'givecoins': {
       const t = interaction.options.getUser('user'); const a = interaction.options.getInteger('amount');
+      if (!t || !a) return interaction.reply('Usage: /givecoins @user amount');
       const p = getOrCreateUser(t.id, t.username);
       updateUser(t.id, { money: p.money + a });
       return interaction.reply('Gave ' + fmtNum(a) + ' coins to <@' + t.id + '>. Balance: ' + fmtNum(p.money + a) + '.');
     }
     case 'takecoins': {
       const t = interaction.options.getUser('user'); const a = interaction.options.getInteger('amount');
+      if (!t || !a) return interaction.reply('Usage: /takecoins @user amount');
       const p = getOrCreateUser(t.id, t.username);
       const nm = Math.max(0, p.money - a);
       updateUser(t.id, { money: nm });
@@ -762,11 +769,13 @@ async function handleSlashCommand(interaction) {
     }
     case 'setxp': {
       const t = interaction.options.getUser('user'); const xp = interaction.options.getInteger('amount');
+      if (!t || xp === null) return interaction.reply('Usage: /setxp @user amount');
       updateUser(t.id, { xp: xp, level: levelFromXP(xp) });
       return interaction.reply('Set <@' + t.id + ">'s XP to " + fmtNum(xp) + ' (Level ' + levelFromXP(xp) + ').');
     }
     case 'addxp': {
       const t = interaction.options.getUser('user'); const a = interaction.options.getInteger('amount');
+      if (!t || !a) return interaction.reply('Usage: /addxp @user amount');
       const p = getOrCreateUser(t.id, t.username);
       const nx = p.xp + a; const nl = levelFromXP(nx);
       updateUser(t.id, { xp: nx, level: nl });
@@ -774,12 +783,14 @@ async function handleSlashCommand(interaction) {
     }
     case 'setlevel': {
       const t = interaction.options.getUser('user'); const l = interaction.options.getInteger('level');
+      if (!t || l === null) return interaction.reply('Usage: /setlevel @user level');
       const xp = xpForLevel(l);
       updateUser(t.id, { xp, level: l });
       return interaction.reply('Set <@' + t.id + ">'s level to " + l + ' (XP: ' + fmtNum(xp) + ').');
     }
     case 'takelvl': {
       const t = interaction.options.getUser('user'); const l = interaction.options.getInteger('levels');
+      if (!t || !l) return interaction.reply('Usage: /takelvl @user levels');
       const p = getOrCreateUser(t.id, t.username);
       const cl = p.level || levelFromXP(p.xp); const nl = Math.max(0, cl - l);
       updateUser(t.id, { xp: xpForLevel(nl), level: nl });
@@ -787,6 +798,7 @@ async function handleSlashCommand(interaction) {
     }
     case 'resetuser': {
       const t = interaction.options.getUser('user');
+      if (!t) return interaction.reply('Mention a user to reset!');
       updateUser(t.id, { money: 0, xp: 0, level: 0, gamble_streak: 0, vc_minutes: 0, last_daily: '', last_work: '', last_rob: '', shield_until: '', lucky_charm: 0, xp_boost_until: '' });
       return interaction.reply('Reset <@' + t.id + ">'s profile completely.");
     }
@@ -797,6 +809,7 @@ async function handleSlashCommand(interaction) {
     }
     case 'setbump': {
       const c = interaction.options.getChannel('channel');
+      if (!c) return interaction.reply('Mention a channel! Usage: .setbump #channel');
       setConfig('bump_channel_id', c.id);
       return interaction.reply('Bump reminders will now go to <#' + c.id + '>!');
     }
@@ -829,7 +842,7 @@ function handleHelp(interaction) {
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },
-      { name: 'Auto-Mod', value: 'Anti-spam: 3+ identical messages = auto-delete + 60s timeout' },
+      { name: 'Auto-Mod', value: 'Anti-spam: 7+ identical messages = auto-delete + 60s timeout' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
     );
   return interaction.reply({ embeds: [embed] });
