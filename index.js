@@ -23,6 +23,7 @@ const {
 } = require('./database');
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
+const APP_ID = process.env.DISCORD_APP_ID;
 const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
