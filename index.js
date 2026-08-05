@@ -27,8 +27,8 @@ const APP_ID = process.env.DISCORD_APP_ID;
 const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
-const GRAPE_GIF = process.env.GRAPE_GIF || '';
-const BEAT_GIF = process.env.BEAT_GIF || '';
+const GRAPE_GIFS = (process.env.GRAPE_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
+const BEAT_GIFS = (process.env.BEAT_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const ownerId = process.env.OWNER_ID;
 const extraOwnerIds = (process.env.EXTRA_OWNER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -689,8 +689,9 @@ async function handleSlashCommand(interaction) {
     case 'grape': {
       const t = interaction.options.getUser('user');
       const grapeText = username + ' threw grapes at ' + (t ? '<@' + t.id + '>' : 'everyone') + '!';
-      if (GRAPE_GIF) {
-        const grapeEmbed = new EmbedBuilder().setDescription(grapeText).setImage(GRAPE_GIF).setColor(0x5865F2);
+      if (GRAPE_GIFS.length > 0) {
+        const gif = GRAPE_GIFS[Math.floor(Math.random() * GRAPE_GIFS.length)];
+        const grapeEmbed = new EmbedBuilder().setDescription(grapeText).setImage(gif).setColor(0x5865F2);
         return interaction.reply({ embeds: [grapeEmbed] });
       }
       return interaction.reply(grapeText);
@@ -698,8 +699,9 @@ async function handleSlashCommand(interaction) {
     case 'beat': {
       const t = interaction.options.getUser('user');
       const beatText = username + ' beat ' + (t ? '<@' + t.id + '>' : 'the air') + ' with a pillow!';
-      if (BEAT_GIF) {
-        const beatEmbed = new EmbedBuilder().setDescription(beatText).setImage(BEAT_GIF).setColor(0x5865F2);
+      if (BEAT_GIFS.length > 0) {
+        const gif = BEAT_GIFS[Math.floor(Math.random() * BEAT_GIFS.length)];
+        const beatEmbed = new EmbedBuilder().setDescription(beatText).setImage(gif).setColor(0x5865F2);
         return interaction.reply({ embeds: [beatEmbed] });
       }
       return interaction.reply(beatText);
