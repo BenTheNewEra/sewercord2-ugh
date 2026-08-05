@@ -273,7 +273,7 @@ client.once('ready', () => {
 
 // --- Anti-Spam System ---
 const SPAM_WINDOW = 10000; // 10 seconds
-const SPAM_THRESHOLD = 3; // 3 identical messages = spam
+const SPAM_THRESHOLD = 7; // 7 identical messages = spam
 const SPAM_TIMEOUT_SECONDS = 60; // timeout for 1 minute on spam
 const spamTracker = new Map(); // userId -> [{ content, timestamp, msgId }]
 
