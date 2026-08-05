@@ -123,7 +123,7 @@ class MsgAdapter {
     this.guildId = message.guild ? message.guild.id : null;
     this.channel = message.channel;
     this.channelId = message.channel.id;
-    [this.com](https://this.com)mandName = commandName;
+this .commandName = commandName;
     this.options = optionsAdapter;
     this.deferred = false;
   }
