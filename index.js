@@ -13,7 +13,7 @@ http.createServer((req, res) => res.writeHead(200).end('OK'))
 
 const {
   Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  SlashCommandBuilder, Partials
+  SlashCommandBuilder, Partials, PermissionFlagsBits
 } = require('discord.js');
 
 const {
@@ -101,6 +101,7 @@ const CMD_ARGS = {
   kick: ['user:user', 'reason:rest?'],
   ban: ['user:user', 'reason:rest?'],
   purge: ['amount:int'],
+  to: ['user:user', 'duration:int', 'reason:rest?'],
   setlog: ['channel:channel'],
   givecoins: ['user:user', 'amount:int'],
   takecoins: ['user:user', 'amount:int'],
@@ -277,7 +278,7 @@ client.on('messageCreate', async (message) => {
       'ping', 'help', 'bl', 'daily', 'work', 'gamble', 'pay', 'rob', 'shop', 'buy',
       'rank', 'lb', 'roll', 'coinflip', '8ball', 'choose', 'cookie', 'pray', 'curse',
       'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'userinfo', 'mailbox',
-      'kick', 'ban', 'purge', 'setlog',
+      'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval'
     ];
@@ -512,6 +513,17 @@ async function handleSlashCommand(interaction) {
     case 'userinfo': return handleUserInfo(interaction, interaction.options);
     case 'mailbox': return handleMailbox(interaction, userId);
 
+    const modPerms = {
+      kick: 'KickMembers',
+      ban: 'BanMembers',
+      purge: 'ManageMessages',
+      timeout: 'ModerateMembers',
+      to: 'ModerateMembers',
+    };
+    if (modPerms[commandName] && (!interaction.member || !interaction.member.permissions.has(PermissionFlagsBits[modPerms[commandName]]))) {
+      return interaction.reply({ content: 'You need the **' + modPerms[commandName] + '** permission to use this command.', ephemeral: true });
+    }
+
     case 'kick': {
       const target = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason') || 'No reason provided';
@@ -536,6 +548,19 @@ async function handleSlashCommand(interaction) {
       } catch { return interaction.reply('Failed to purge.'); }
     }
 
+    case 'timeout': case 'to': {
+      const target = interaction.options.getUser('user');
+      const duration = interaction.options.getInteger('duration');
+      const reason = interaction.options.getString('reason') || 'No reason provided';
+      if (!target) return interaction.reply('Please mention a user to timeout.');
+      if (!duration || duration < 1) return interaction.reply('Duration must be at least 1 second.');
+      try {
+        const member = await interaction.guild['members'].fetch(target.id);
+        await member.timeout(duration * 1000, reason);
+        const timeStr = duration >= 60 ? Math.floor(duration / 60) + ' min' : duration + ' sec';
+        return interaction.reply('Timed out <@' + target.id + '> for ' + timeStr + '. Reason: ' + reason);
+      } catch { return interaction.reply('Failed to timeout (need Moderate Members permission).'); }
+    }
     case 'givecoins': {
       const t = interaction.options.getUser('user'); const a = interaction.options.getInteger('amount');
       const p = getOrCreateUser(t.id, t.username);
@@ -617,7 +642,7 @@ function handleHelp(interaction) {
       { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat' },
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
-      { name: 'Moderation', value: '/kick /ban /purge /setlog' },
+      { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
     );
   return interaction.reply({ embeds: [embed] });
@@ -876,16 +901,18 @@ function buildMailbox(userId, page) {
     })))
     .setFooter({ text: mentions.length + ' mentions total' });
 
-  const components = [];
+  const row = new ActionRowBuilder();
   if (totalPages > 1) {
-    components.push(new ActionRowBuilder().addComponents(
+    row.addComponents(
       new ButtonBuilder().setCustomId('mb_prev:' + userId + ':' + pageIdx).setLabel('Prev').setStyle(ButtonStyle.Secondary).setDisabled(pageIdx === 0),
       new ButtonBuilder().setCustomId('mb_page').setLabel('Page ' + (pageIdx + 1) + '/' + totalPages).setStyle(ButtonStyle.Secondary).setDisabled(true),
       new ButtonBuilder().setCustomId('mb_next:' + userId + ':' + pageIdx).setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pageIdx >= totalPages - 1),
-      new ButtonBuilder().setCustomId('mb_read:' + userId + ':' + pageIdx).setLabel('Mark Read').setStyle(ButtonStyle.Primary),
-    ));
+    );
   }
-  return { embed, components };
+  row.addComponents(
+    new ButtonBuilder().setCustomId('mb_read:' + userId + ':' + pageIdx).setLabel('Mark Read').setStyle(ButtonStyle.Primary),
+  );
+  return { embed, components: [row] };
 }
 
 function handleMailbox(interaction, userId) {
