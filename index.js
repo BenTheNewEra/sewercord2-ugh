@@ -23,7 +23,7 @@ const {
 } = require('./database');
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
-const GUILD_ID = process.env.GUILD_ID;
+const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
 
@@ -351,7 +351,7 @@ client.on('messageCreate', async (message) => {
     if (await checkAntiSpam(message)) return;
     if (message.author.bot || !message.guild) return;
     // Only respond to commands in the configured guild
-    if (GUILD_ID && message.guild.id !== GUILD_ID) return;
+    if (GUILD_IDS.length && !GUILD_IDS.includes(message.guild.id)) return;
     const content = message.content.trim();
     if (!content.startsWith(PREFIX)) return;
 
@@ -384,7 +384,7 @@ client.on('messageCreate', async (message) => {
 const vcState = new Map();
 function trackVoiceChannels() {
   for (const guild of client.guilds.cache.values()) {
-    if (GUILD_ID && guild.id !== GUILD_ID) continue;
+    if (GUILD_IDS.length && !GUILD_IDS.includes(guild.id)) continue;
     const vcMembers = new Map();
     for (const [channelId, channel] of guild.channels.cache) {
       if (channel.type !== 2) continue;
@@ -412,7 +412,7 @@ function trackVoiceChannels() {
 const lastMsgIds = new Map();
 function pollMessages() {
   for (const guild of client.guilds.cache.values()) {
-    if (GUILD_ID && guild.id !== GUILD_ID) continue;
+    if (GUILD_IDS.length && !GUILD_IDS.includes(guild.id)) continue;
     for (const [channelId, channel] of guild.channels.cache) {
       if (channel.type !== 0) continue;
       if (!channel.viewable) continue;
@@ -469,7 +469,7 @@ function pollMessages() {
 client.on('interactionCreate', async (interaction) => {
   try {
     // Only respond to interactions in the configured guild
-    if (GUILD_ID && interaction.guildId && interaction.guildId !== GUILD_ID) return;
+    if (GUILD_IDS.length && interaction.guildId && !GUILD_IDS.includes(interaction.guildId)) return;
     if (interaction.isChatInputCommand()) {
       await handleSlashCommand(interaction);
     } else if (interaction.isButton()) {

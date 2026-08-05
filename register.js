@@ -3,7 +3,7 @@ const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const APP_ID = process.env.DISCORD_APP_ID;
-const GUILD_ID = process.env.GUILD_ID;
+const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const commands = [
   new SlashCommandBuilder().setName('ping').setDescription('Check if bot is online'),
@@ -74,8 +74,10 @@ const rest = new REST().setToken(TOKEN);
 (async () => {
   try {
     console.log('Registering ' + commands.length + ' commands...');
-    const data = await rest.put(Routes.applicationGuildCommands(APP_ID, GUILD_ID), { body: commands });
-    console.log('Registered ' + data.length + ' commands to guild ' + GUILD_ID);
+    for (const gid of GUILD_IDS) {
+      const data = await rest.put(Routes.applicationGuildCommands(APP_ID, gid), { body: commands });
+      console.log('Registered ' + data.length + ' commands to guild ' + gid);
+    }
   } catch (err) {
     console.error('Failed:', err);
   }
