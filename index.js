@@ -1128,23 +1128,52 @@ function handleRank(interaction, userId, username) {
   return interaction.reply('**' + username + '** — Rank **#' + rank + '/' + all.length + '** • Level **' + level + '** • **' + fmtNum(user.xp) + ' XP**');
 }
 
-function handleLeaderboard(interaction) {
+async function handleLeaderboard(interaction) {
   const all = db.prepare('SELECT * FROM users ORDER BY xp DESC').all();
   if (!all.length) return interaction.reply('No users yet!');
-  const medals = ['1st', '2nd', '3rd', '4th', '5th'];
-  const richest = [...all].sort((a, b) => b.money - a.money).slice(0, 5);
-  const highest = [...all].sort((a, b) => b.xp - a.xp).slice(0, 5);
-  const vcTime = [...all].sort((a, b) => (b.vc_minutes || 0) - (a.vc_minutes || 0)).slice(0, 5);
 
-  let msg = '**SERVER LEADERBOARD**\n\n';
-  msg += '**Richest**\n';
-  richest.forEach((p, i) => { msg += medals[i] + ' **' + p.username + '** — ' + fmtNum(p.money) + ' coins\n'; });
-  msg += '\n**Highest Level**\n';
-  highest.forEach((p, i) => { msg += medals[i] + ' **' + p.username + '** — Lvl ' + levelFromXP(p.xp) + '\n'; });
-  msg += '\n**Longest Time in VC**\n';
-  vcTime.forEach((p, i) => { msg += medals[i] + ' **' + p.username + '** — ' + formatVcTime(p.vc_minutes || 0) + '\n'; });
-  if (msg.length > 2000) msg = msg.substring(0, 1997) + '...';
-  return interaction.reply(msg);
+  const richest = [...all].sort((a, b) => b.money - a.money).slice(0, 10);
+  const highest = [...all].sort((a, b) => b.xp - a.xp).slice(0, 10);
+  const vcTime = [...all].sort((a, b) => (b.vc_minutes || 0) - (a.vc_minutes || 0)).slice(0, 10);
+
+  // Fetch display names (nicknames) from the guild
+  const displayNames = {};
+  const guild = interaction.guild;
+  if (guild) {
+    for (const p of [...new Set([...richest, ...highest, ...vcTime])]) {
+      try {
+        const member = await guild['members'].fetch(p.discord_user_id);
+        displayNames[p.discord_user_id] = member.displayName || null;
+      } catch {
+        displayNames[p.discord_user_id] = null;
+      }
+    }
+  }
+
+  const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49', '\u0034\ufe0f\u20e3', '\u0035\ufe0f\u20e3', '\u0036\ufe0f\u20e3', '\u0037\ufe0f\u20e3', '\u0038\ufe0f\u20e3', '\u0039\ufe0f\u20e3', '\u0031\u0030\ufe0f\u20e3'];
+
+  function formatLine(p, i, value) {
+    const medal = medals[i] || (i + 1) + '.';
+    const dispName = displayNames[p.discord_user_id];
+    const nameStr = dispName ? '**' + p.username + '** (' + dispName + ')' : '**' + p.username + '**';
+    return medal + ' ' + nameStr + ' \u2014 ' + value;
+  }
+
+  const richestLines = richest.map((p, i) => formatLine(p, i, fmtNum(p.money) + ' coins')).join('\n');
+  const levelLines = highest.map((p, i) => formatLine(p, i, 'Level ' + levelFromXP(p.xp) + ' (' + fmtNum(p.xp) + ' XP)')).join('\n');
+  const vcLines = vcTime.map((p, i) => formatLine(p, i, formatVcTime(p.vc_minutes || 0))).join('\n');
+
+  const embed = new EmbedBuilder()
+    .setTitle('\ud83c\udfc6 Server Leaderboard')
+    .setColor(0x5865F2)
+    .addFields(
+      { name: '\ud83d\udcb0 Richest', value: richestLines || 'No data', inline: false },
+      { name: '\ud83d\ude80 Highest Level', value: levelLines || 'No data', inline: false },
+      { name: '\ud83c\udfa4 Most Time in VC', value: vcLines || 'No data', inline: false },
+    )
+    .setFooter({ text: interaction.guild.name + ' \u2022 ' + all.length + ' users tracked' });
+
+  return interaction.reply({ embeds: [embed] });
 }
 
 function handleUserInfo(interaction, options) {
