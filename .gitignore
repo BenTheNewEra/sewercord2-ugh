@@ -1,3 +1,7 @@
 node_modules/
 .env
 *.js.bak
+bot.db
+*.db
+*.db-wal
+*.db-shm

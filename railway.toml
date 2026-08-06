@@ -1,0 +1,7 @@
+[build]
+dockerfile = "Dockerfile"
+
+[deploy]
+# Railway will mount a persistent volume at /app/data
+# Configure the volume in Railway Dashboard > Settings > Volumes
+# Mount path: /app/data
