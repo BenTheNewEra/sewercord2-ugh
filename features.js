@@ -734,12 +734,17 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     if (existing) return interaction.reply({ content: `You already have **${existing.pet_name}** (${existing.pet_type})! Use /pet status to check on them.`, ephemeral: true });
     const petName = interaction.options.getString('name');
     if (!petName || !petName.trim()) return interaction.reply({ content: 'Please provide a name for your pet! e.g. `/pet adopt Fluffy`', ephemeral: true });
-    const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+    const typeChoice = interaction.options.getString('type');
+    const petType = typeChoice || PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+    if (typeChoice && !PET_TYPES.includes(typeChoice)) {
+      const list = PET_TYPES.join('\n');
+      return interaction.reply({ content: `Unknown pet type! Choose from:\n${list}`, ephemeral: true });
+    }
     db.prepare('INSERT INTO pets (user_id, pet_name, pet_type, level, xp, last_fed, happiness) VALUES (?, ?, ?, 1, 0, ?, 100)')
-      .run(userId, petName, petType, new Date().toISOString());
+      .run(userId, petName.trim(), petType, new Date().toISOString());
     const badges = checkAndAward(userId, username, ['first_pet']);
     const embed = new EmbedBuilder().setTitle('🐾 New Pet!').setColor(0x2ECC71)
-      .setDescription(`You adopted a **${petType}** and named them **${petName}**! 🎉\n\nFeed them daily with /pet feed to keep them happy and level them up!`);
+      .setDescription(`You adopted a **${petType}** and named them **${petName.trim()}**! 🎉\n\nFeed them every hour with /pet feed to keep them happy and level them up!`);
     if (badges.length) embed.addFields({ name: '🏆 Achievement Unlocked!', value: badges.join('\n') });
     return interaction.reply({ embeds: [embed] });
   }

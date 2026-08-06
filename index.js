@@ -407,9 +407,21 @@ const slashCommands = [
     .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters')),
   new SlashCommandBuilder().setName('trivia').setDescription('Answer a trivia question for coins'),
   new SlashCommandBuilder().setName('pet').setDescription('Pet system')
-    .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet').addStringOption(o => o.setName('name').setDescription('Name your pet').setRequired(true)))
+    .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet')
+      .addStringOption(o => o.setName('name').setDescription('Name your pet').setRequired(true))
+      .addStringOption(o => o.setName('type').setDescription('Choose a pet type (optional — random if not chosen)')
+        .addChoices(
+          { name: '🐶 Dog',     value: '🐶 Dog' },
+          { name: '🐱 Cat',     value: '🐱 Cat' },
+          { name: '🐹 Hamster', value: '🐹 Hamster' },
+          { name: '🦊 Fox',     value: '🦊 Fox' },
+          { name: '🐸 Frog',    value: '🐸 Frog' },
+          { name: '🐧 Penguin', value: '🐧 Penguin' },
+          { name: '🦎 Lizard',  value: '🦎 Lizard' },
+          { name: '🐺 Wolf',    value: '🐺 Wolf' },
+        )))
     .addSubcommand(s => s.setName('status').setDescription('Check your pet'))
-    .addSubcommand(s => s.setName('feed').setDescription('Feed your pet (costs 10 coins, 4h cooldown)'))
+    .addSubcommand(s => s.setName('feed').setDescription('Feed your pet (costs 10 coins, 1h cooldown)'))
     .addSubcommand(s => s.setName('rename').setDescription('Rename your pet').addStringOption(o => o.setName('name').setDescription('New name').setRequired(true))),
   new SlashCommandBuilder().setName('serverstats').setDescription('Show server statistics'),
   new SlashCommandBuilder().setName('slowmode').setDescription('Set channel slowmode')
