@@ -584,7 +584,7 @@ function handleStocks(interaction, db, getOrCreateUser, updateUser) {
     const symbol = interaction.options.getString('symbol').toUpperCase();
     const shares = interaction.options.getInteger('shares');
     const stock = db.prepare('SELECT * FROM stocks WHERE symbol = ?').get(symbol);
-    if (!stock) return interaction.reply({ content: `Unknown symbol. Use /stocks market to see available stocks.`, ephemeral: true });
+    if (!stock) return interaction.reply({ content: `Unknown symbol. Use \`/stocks market\` to see available stocks.`, ephemeral: true });
     const cost = Math.floor(stock.price * shares);
     const user = getOrCreateUser(userId, username);
     if (user.money < cost) return interaction.reply({ content: `Need ${fmtNum(cost)} coins, you have ${fmtNum(user.money)}.`, ephemeral: true });
@@ -604,7 +604,7 @@ function handleStocks(interaction, db, getOrCreateUser, updateUser) {
     const symbol = interaction.options.getString('symbol').toUpperCase();
     const shares = interaction.options.getInteger('shares');
     const stock = db.prepare('SELECT * FROM stocks WHERE symbol = ?').get(symbol);
-    if (!stock) return interaction.reply({ content: `Unknown symbol.`, ephemeral: true });
+    if (!stock) return interaction.reply({ content: `Unknown symbol. Use \`/stocks market\` to see available stocks.`, ephemeral: true });
     const existing = db.prepare('SELECT * FROM stock_portfolio WHERE user_id = ? AND symbol = ?').get(userId, symbol);
     if (!existing || existing.shares < shares) return interaction.reply({ content: `You don't have ${shares} shares of ${symbol}.`, ephemeral: true });
     const earnings = Math.floor(stock.price * shares);
