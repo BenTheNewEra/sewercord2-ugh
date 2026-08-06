@@ -1455,7 +1455,7 @@ function buildMailbox(userId, page) {
 
 function handleMailbox(interaction, userId) {
   const result = buildMailbox(userId, 0);
-  return interaction.reply({ embeds: [result.embed], components: result.components, ephemeral: true });
+  return interaction.reply({ embeds: [result.embed], components: result.components });
 }
 
 client.login(TOKEN);
