@@ -735,7 +735,7 @@ async function handleSlashCommand(interaction) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval'];
+  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval', 'serverstats'];
   if (ownerCmds.includes(commandName) && !isOwner(userId)) {
     return interaction.reply({ content: 'Owner only command!', ephemeral: true });
   }
@@ -854,9 +854,10 @@ async function handleSlashCommand(interaction) {
       const reason = interaction.options.getString('reason') || 'No reason provided';
       if (!target) return interaction.reply('Mention a user to kick!');
       try {
-        await interaction.guild['members'].kick(target, reason);
+        const member = await interaction.guild.members.fetch(target.id);
+        await member.kick(reason);
         return interaction.reply('Kicked <@' + target.id + '>. Reason: ' + reason);
-      } catch { return interaction.reply('Failed to kick (need Kick Members permission).'); }
+      } catch { return interaction.reply('Failed to kick (need Kick Members permission or user not in server).'); }
     }
     case 'ban': {
       const target = interaction.options.getUser('user');
@@ -869,10 +870,11 @@ async function handleSlashCommand(interaction) {
     }
     case 'purge': {
       const amount = Math.min(interaction.options.getInteger('amount') || 1, 100);
+      await interaction.deferReply({ ephemeral: true });
       try {
-        await interaction.channel.bulkDelete(amount);
-        return interaction.reply({ content: 'Deleted ' + amount + ' messages!', ephemeral: true });
-      } catch { return interaction.reply('Failed to purge.'); }
+        const deleted = await interaction.channel.bulkDelete(amount, true);
+        return interaction.editReply({ content: 'Deleted ' + deleted.size + ' messages!' });
+      } catch { return interaction.editReply('Failed to purge (messages older than 14 days cannot be bulk deleted).'); }
     }
 
     case 'timeout': case 'to': {
@@ -882,7 +884,7 @@ async function handleSlashCommand(interaction) {
       if (!target) return interaction.reply('Please mention a user to timeout.');
       if (!duration || duration < 1) return interaction.reply('Duration must be at least 1 second.');
       try {
-        const member = await interaction.guild['members'].fetch(target.id);
+        const member = await interaction.guild.members.fetch(target.id);
         await member.timeout(duration * 1000, reason);
         const timeStr = duration >= 60 ? Math.floor(duration / 60) + ' min' : duration + ' sec';
         return interaction.reply('Timed out <@' + target.id + '> for ' + timeStr + '. Reason: ' + reason);
@@ -1012,7 +1014,7 @@ async function handleSlashCommand(interaction) {
     case 'unlock': return handleUnlock(interaction);
   }
 
-  if (!['ping', 'help', 'shop', 'bl', 'rank', 'lb', 'mailbox', ...ownerCmds].includes(commandName)) {
+  if (!['ping', 'help', 'shop', 'bl', 'rank', 'lb', 'mailbox', 'slowmode', 'lock', 'unlock', ...ownerCmds].includes(commandName)) {
     const act = trackActivity(userId, username);
     if (act && act.leveledUp && LEVELUP_CHANNEL_ID) {
       postToChannel(LEVELUP_CHANNEL_ID, username + ' just reached Level ' + act.newLevel + '!');
