@@ -859,7 +859,15 @@ async function handleSlashCommand(interaction) {
     }
     case 'beat': {
       const t = interaction.options.getUser('user');
-      const beatText = username + ' is beating ' + (t ? '<@' + t.id + '>' : 'the air') + '!';
+      const senderDisplay = interaction.member ? interaction.member.displayName : username;
+      let targetDisplay = 'the air';
+      if (t) {
+        try {
+          const tm = await interaction.guild.members.fetch(t.id);
+          targetDisplay = tm.displayName;
+        } catch { targetDisplay = t.displayName || t.username; }
+      }
+      const beatText = '**' + senderDisplay + '** is beating **' + targetDisplay + '**!';
       if (BEAT_GIFS.length > 0) {
         const gif = BEAT_GIFS[Math.floor(Math.random() * BEAT_GIFS.length)];
         const beatEmbed = new EmbedBuilder().setDescription(beatText).setImage(gif).setColor(0x5865F2);
