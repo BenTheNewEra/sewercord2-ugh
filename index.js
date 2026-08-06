@@ -84,7 +84,7 @@ const SHOP = {
   nickname: { name: 'Nickname Change', price: 250 },
   lottery: { name: 'Lottery Ticket', price: 150 },
   mystery: { name: 'Mystery Box', price: 500 },
-  robkit: { name: 'Robbery Kit', price: 700 },
+  robkit: { name: 'Gun', price: 700 },
   dailymult: { name: 'Double Daily', price: 350 },
 };
 
@@ -241,7 +241,7 @@ function resolveStaleRobberies() {
         updateUser(r.robber_id, { money: robber.money + stealAmount });
       }
       updateRobbery(r.id, { status: 'success', steal_amount: stealAmount });
-      postToChannel(r.channel_id, r.robber_name + ' successfully robbed ' + r.victim_name + ' and stole ' + fmtNum(stealAmount) + ' coins!' + (robber.rob_bonus ? ' (Robbery Kit: +20%)' : ''));
+      postToChannel(r.channel_id, r.robber_name + ' successfully robbed ' + r.victim_name + ' and stole ' + fmtNum(stealAmount) + ' coins!' + (robber.rob_bonus ? ' (Gun: +20%)' : ''));
     } else {
       const penalty = Math.min(r.penalty_amount, robber.money);
       if (penalty > 0) updateUser(r.robber_id, { money: robber.money - penalty });
@@ -318,7 +318,7 @@ const slashCommands = [
         { name: 'Nickname - 250 coins', value: 'nickname' },
         { name: 'Lottery Ticket - 150 coins', value: 'lottery' },
         { name: 'Mystery Box - 500 coins', value: 'mystery' },
-        { name: 'Robbery Kit - 700 coins', value: 'robkit' },
+        { name: 'Gun - 700 coins', value: 'robkit' },
         { name: 'Double Daily - 350 coins', value: 'dailymult' },
       ))
     .addStringOption(o => o.setName('nickname').setDescription('New nickname (nickname item only)')),
@@ -1112,7 +1112,7 @@ function handleShop(interaction) {
       { name: 'Nickname - 250 coins', value: 'Change your server nickname.' },
       { name: 'Lottery Ticket - 150 coins', value: 'Instant 15% chance to win 1500 coins!' },
       { name: 'Mystery Box - 500 coins', value: 'Random reward: coins, XP, items, or nothing!' },
-      { name: 'Robbery Kit - 700 coins', value: '+20% steal amount on your next robbery.' },
+      { name: 'Gun - 700 coins', value: '+20% steal amount on your next robbery.' },
       { name: 'Double Daily - 350 coins', value: 'Next /daily gives 2x coins!' },
     );
   return interaction.reply({ embeds: [embed] });
@@ -1164,7 +1164,7 @@ async function handleBuy(interaction, userId, username, options) {
   }
   if (item === 'mystery') {
     updateUser(userId, { money: user.money - shopItem.price });
-    const rewards = [
+    let rewards = [
       { label: '500 coins', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 500 }); return 'You got **500 coins**!'; } },
       { label: '1000 coins', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 1000 }); return 'You got **1000 coins**!'; } },
       { label: '200 XP', action: () => { addXPAndMoney(userId, 200, 0); return 'You got **200 XP**!'; } },
@@ -1173,14 +1173,16 @@ async function handleBuy(interaction, userId, username, options) {
       { label: 'nothing', action: () => { return 'You got... **nothing**. Tough luck!'; } },
       { label: '150 coins back', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 150 }); return 'You got **150 coins back**.'; } },
     ];
+    // Filter out Lucky Charm if user already has one
+    if (user.lucky_charm) rewards = rewards.filter(r => r.label !== 'Lucky Charm');
     const reward = rewards[Math.floor(Math.random() * rewards.length)];
     const result = reward.action();
     return interaction.reply('🎁 **Mystery Box opened!** ' + result + ' Balance: ' + fmtNum(getOrCreateUser(userId, username).money) + '.');
   }
   if (item === 'robkit') {
-    if (user.rob_bonus) return interaction.reply('You already have a Robbery Kit active!');
+    if (user.rob_bonus) return interaction.reply('You already have a Gun equipped!');
     updateUser(userId, { money: user.money - shopItem.price, rob_bonus: 1 });
-    return interaction.reply('**Robbery Kit activated!** +20% steal on your next robbery. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
+    return interaction.reply('**Gun equipped!** +20% steal on your next robbery. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
   }
   if (item === 'dailymult') {
     if (user.daily_boost) return interaction.reply('You already have a Double Daily active!');

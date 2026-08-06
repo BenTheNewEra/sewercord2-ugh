@@ -39,7 +39,7 @@ const commands = [
         { name: 'Nickname - 250 coins', value: 'nickname' },
         { name: 'Lottery Ticket - 150 coins', value: 'lottery' },
         { name: 'Mystery Box - 500 coins', value: 'mystery' },
-        { name: 'Robbery Kit - 700 coins', value: 'robkit' },
+        { name: 'Gun - 700 coins', value: 'robkit' },
         { name: 'Double Daily - 350 coins', value: 'dailymult' },
       ))
     .addStringOption(o => o.setName('nickname').setDescription('New nickname (nickname item only)')),
