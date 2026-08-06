@@ -663,7 +663,8 @@ const triviaActive = new Map(); // userId -> question
 function handleTrivia(interaction, db, getOrCreateUser, updateUser, checkAndAward) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
-  getOrCreateUser(userId, username);
+  const user = getOrCreateUser(userId, username);
+  if (user.money < 50) return interaction.reply({ content: 'You need at least **50 coins** to play trivia (wrong answers cost 50 coins)!', ephemeral: true });
 
   const q = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)];
   triviaActive.set(userId, q);
@@ -676,7 +677,7 @@ function handleTrivia(interaction, db, getOrCreateUser, updateUser, checkAndAwar
   );
   const embed = new EmbedBuilder().setTitle('🧠 Trivia').setColor(0x9B59B6)
     .setDescription(`**${q.q}**`)
-    .setFooter({ text: 'Correct = +100 coins | Wrong = -50 coins' });
+    .setFooter({ text: 'Correct = +100 coins | Wrong = -50 coins | Max balance capped at 10,000' });
   return interaction.reply({ embeds: [embed], components: [row] });
 }
 
@@ -698,20 +699,21 @@ async function handleTriviaButton(interaction, db, getOrCreateUser, updateUser, 
   if (!scoreRow) { db.prepare('INSERT INTO trivia_scores (user_id) VALUES (?)').run(ownerId); scoreRow = { correct: 0, wrong: 0 }; }
 
   if (correct) {
-    updateUser(ownerId, { money: user.money + 100 });
+    updateUser(ownerId, { money: Math.min(user.money + 100, 10000) });
     db.prepare('UPDATE trivia_scores SET correct = correct + 1 WHERE user_id = ?').run(ownerId);
     const newCorrect = scoreRow.correct + 1;
     const badges = checkAndAward(ownerId, interaction.user.username, newCorrect >= 10 ? ['trivia_10'] : []);
     const embed = new EmbedBuilder().setTitle('🧠 Trivia — ✅ Correct!').setColor(0x2ECC71)
-      .setDescription(`**${q.q}**\n\nAnswer: **${q.choices.find(c => c.toLowerCase() === q.a)}**\n\n**+100 coins!** Balance: ${fmtNum(user.money + 100)}`)
+      .setDescription(`**${q.q}**\n\nAnswer: **${q.choices.find(c => c.toLowerCase() === q.a)}**\n\n**+100 coins!** Balance: ${fmtNum(Math.min(user.money + 100, 10000))}`)
       .setFooter({ text: `Score: ${newCorrect} correct` });
     if (badges.length) embed.addFields({ name: '🏆 Achievement Unlocked!', value: badges.join('\n') });
     return interaction.update({ embeds: [embed], components: [] });
   } else {
+    const penalty = Math.min(50, user.money);
     updateUser(ownerId, { money: Math.max(0, user.money - 50) });
     db.prepare('UPDATE trivia_scores SET wrong = wrong + 1 WHERE user_id = ?').run(ownerId);
     const embed = new EmbedBuilder().setTitle('🧠 Trivia — ❌ Wrong!').setColor(0xE74C3C)
-      .setDescription(`**${q.q}**\n\nCorrect answer: **${q.choices.find(c => c.toLowerCase() === q.a)}**\n\n**-50 coins.** Balance: ${fmtNum(Math.max(0, user.money - 50))}`);
+      .setDescription(`**${q.q}**\n\nCorrect answer: **${q.choices.find(c => c.toLowerCase() === q.a)}**\n\n**-${penalty} coins.** Balance: ${fmtNum(Math.max(0, user.money - 50))}`);
     return interaction.update({ embeds: [embed], components: [] });
   }
 }

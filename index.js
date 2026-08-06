@@ -322,7 +322,7 @@ const slashCommands = [
         { name: 'Teacher', value: 'teacher' }, { name: 'DJ', value: 'dj' },
       )),
   new SlashCommandBuilder().setName('gamble').setDescription('Gamble coins (50/50)')
-    .addIntegerOption(o => o.setName('amount').setDescription('Amount to bet').setRequired(true).setMinValue(100)),
+    .addIntegerOption(o => o.setName('amount').setDescription('Amount to bet').setRequired(true).setMinValue(100).setMaxValue(10000)),
   new SlashCommandBuilder().setName('pay').setDescription('Give coins to someone')
     .addUserOption(o => o.setName('user').setDescription('Who to pay').setRequired(true))
     .addIntegerOption(o => o.setName('amount').setDescription('Amount').setRequired(true).setMinValue(1)),
@@ -375,9 +375,9 @@ const slashCommands = [
   new SlashCommandBuilder().setName('divorce').setDescription('Divorce your spouse'),
   // ── New Features ──
   new SlashCommandBuilder().setName('bj').setDescription('Play blackjack against the dealer')
-    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(100)),
+    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(100).setMaxValue(10000)),
   new SlashCommandBuilder().setName('slots').setDescription('Spin the slot machine')
-    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(100)),
+    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(100).setMaxValue(10000)),
   new SlashCommandBuilder().setName('fish').setDescription('Go fishing and catch fish to sell (2m cooldown)'),
   new SlashCommandBuilder().setName('heist').setDescription('Plan a heist with other members'),
   new SlashCommandBuilder().setName('stocks').setDescription('Stock market commands')
@@ -1183,9 +1183,10 @@ function handleWork(interaction, userId, username, options) {
 
 function handleGamble(interaction, userId, username, options) {
   const amount = options.getInteger('amount');
-  if (!amount || amount < 100) return interaction.reply('Please provide a bet of at least **100 coins**. Usage: `/gamble 100`');
+  if (!amount || amount < 100) return interaction.reply('Please provide a bet of at least **100 coins**. Usage: `.gamble 100`');
+  if (amount > 10000) return interaction.reply('Maximum bet is **10,000 coins**!');
   const user = getOrCreateUser(userId, username);
-  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to gamble!', ephemeral: true });
+  if (user.money < 100) return interaction.reply('You need at least **100 coins** to gamble!');
   if (user.money < amount) return interaction.reply('You only have ' + fmtNum(user.money) + ' coins!');
   const hasCharm = user.lucky_charm === 1;
   let won;
@@ -1205,7 +1206,6 @@ function handlePay(interaction, userId, username, options) {
   if (target.id === userId) return interaction.reply('Cannot pay yourself!');
   if (!amount || amount < 1) return interaction.reply('Minimum 1 coin!');
   const user = getOrCreateUser(userId, username);
-  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to gamble!', ephemeral: true });
   if (user.money < amount) return interaction.reply('You only have ' + fmtNum(user.money) + ' coins!');
   const targetUser = getOrCreateUser(target.id, target.username);
   updateUser(userId, { money: user.money - amount });
