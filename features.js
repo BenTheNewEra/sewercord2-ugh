@@ -98,8 +98,8 @@ function initFeatureTables(db) {
     ['COIN',     'CoinMint Inc',     250],
     ['BLAZE',    'Blaze Capital',    180],
     ['GOONING',  'Gooning Stocks',   1000],
-    ['SAI',      'Sai',              5000],
-    ['INFINITY', 'Infinity Stocks',  9500],
+    ['SAI',      'Sai',              50000],
+    ['INFINITY', 'Infinity Stocks',  50000],
   ];
   const upsert = db.prepare('INSERT INTO stocks (symbol, name, price, last_updated) VALUES (?, ?, ?, ?) ON CONFLICT(symbol) DO UPDATE SET name = excluded.name');
   for (const [sym, name, price] of desiredStocks) {
@@ -109,7 +109,7 @@ function initFeatureTables(db) {
     } else if (['SAI','INFINITY'].includes(sym)) {
       // Fix stocks that were seeded at 100M — reset to correct price
       const row = db.prepare('SELECT price FROM stocks WHERE symbol = ?').get(sym);
-      if (row && row.price > 1000000) {
+      if (row && (row.price > 1000000 || row.price < 50000)) {
         db.prepare('UPDATE stocks SET price = ?, name = ?, last_updated = ? WHERE symbol = ?').run(price, name, new Date().toISOString(), sym);
       }
     }
