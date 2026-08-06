@@ -466,9 +466,29 @@ client.once('ready', async () => {
 
   setInterval(resolveStaleRobberies, 30000);
   setInterval(checkBumpReminder, 300000);
-  setInterval(pollMessages, 300000);
   setInterval(trackVoiceChannels, 60000);
   setInterval(() => fluctuateStocks(db), 300000);
+
+  // Seed lastMsgIds with the latest message in each channel so pollMessages
+  // never re-processes old messages after a redeploy (prevents level-up spam)
+  if (GUILD_IDS.length) {
+    for (const guildId of GUILD_IDS) {
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) continue;
+      for (const [channelId, channel] of guild.channels.cache) {
+        if (channel.type !== 0 || !channel.viewable) continue;
+        channel.messages.fetch({ limit: 1 }).then(msgs => {
+          if (msgs.size > 0) {
+            const latestId = msgs.first().id;
+            lastMsgIds.set(channelId, latestId);
+            setConfig('msg_xp_' + channelId, latestId);
+          }
+        }).catch(() => {});
+      }
+    }
+  }
+  // Start pollMessages after seeding (delay 10s to let fetches complete)
+  setTimeout(() => setInterval(pollMessages, 300000), 10000);
 });
 
 // --- Anti-Spam System ---
@@ -655,7 +675,11 @@ function pollMessages() {
           updateUser(userId, { xp: newXP, level: newLevel });
 
           if (newLevel > oldLevel && LEVELUP_CHANNEL_ID) {
-            postToChannel(LEVELUP_CHANNEL_ID, info.username + ' just reached Level ' + newLevel + '! Keep chatting!');
+            // Only announce if the channel's last-seen ID was already set (not a fresh seed)
+            // This prevents spam when redeploying
+            if (lastMsgIds.has(channelId) && lastId) {
+              postToChannel(LEVELUP_CHANNEL_ID, info.username + ' just reached Level ' + newLevel + '! Keep chatting!');
+            }
           }
         }
 
@@ -691,6 +715,43 @@ client.on('interactionCreate', async (interaction) => {
 
 async function handleButton(interaction) {
   const customId = interaction.customId;
+
+  if (customId.startsWith('lb:')) {
+    const tab = customId.split(':')[1];
+    const all = db.prepare('SELECT * FROM users ORDER BY xp DESC').all();
+    if (!all.length) return interaction.update({ content: 'No users yet!', embeds: [], components: [] });
+    const richest = [...all].sort((a, b) => b.money - a.money).slice(0, 10);
+    const highest = [...all].sort((a, b) => b.xp   - a.xp  ).slice(0, 10);
+    const vcTop   = [...all].sort((a, b) => (b.vc_minutes||0) - (a.vc_minutes||0)).slice(0, 10);
+    const displayNames = {};
+    if (interaction.guild) {
+      const toFetch = [...new Set([...richest, ...highest, ...vcTop].map(p => p.discord_user_id))];
+      await Promise.all(toFetch.map(async id => {
+        try { const m = await interaction.guild.members.fetch(id); displayNames[id] = m.displayName || null; }
+        catch { displayNames[id] = null; }
+      }));
+    }
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+    const lbName = p => { const d = displayNames[p.discord_user_id]; return (d && d !== p.username) ? `**${d}**` : `**${p.username}**`; };
+    const coinRows  = richest.map((p,i) => `${medals[i]} ${lbName(p)}\n┗ \`${fmtNum(p.money)} coins\``);
+    const levelRows = highest.map((p,i) => `${medals[i]} ${lbName(p)}\n┗ \`Level ${levelFromXP(p.xp)} • ${fmtNum(p.xp)} XP\``);
+    const vcRows    = vcTop.map(  (p,i) => `${medals[i]} ${lbName(p)}\n┗ \`${formatVcTime(p.vc_minutes||0)}\``);
+    const TABS = {
+      coins: { title: '💰  Richest Users',   color: 0xF1C40F, hdr: '> *The wealthiest members*\n​',        rows: coinRows  },
+      level: { title: '🚀  Highest Level',   color: 0x2ECC71, hdr: '> *The most experienced members*\n​',  rows: levelRows },
+      vc:    { title: '🎤  Most Time in VC', color: 0x9B59B6, hdr: '> *The most active VC members*\n​',    rows: vcRows    },
+    };
+    const t = TABS[tab] || TABS.coins;
+    const embed = new EmbedBuilder().setTitle(t.title).setColor(t.color)
+      .setDescription(t.hdr + (t.rows.length ? t.rows.join('\n') : 'No data yet.'))
+      .setFooter({ text: `${interaction.guild ? interaction.guild.name : 'Server'} • ${all.length} users tracked` });
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('lb:coins').setLabel('💰 Richest').setStyle(tab==='coins' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('lb:level').setLabel('🚀 Level')  .setStyle(tab==='level' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('lb:vc')   .setLabel('🎤 VC Time').setStyle(tab==='vc'    ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    );
+    return interaction.update({ embeds: [embed], components: [row] });
+  }
 
   if (customId.startsWith('rob_stop:')) {
     const robberyId = customId.split(':')[1];
