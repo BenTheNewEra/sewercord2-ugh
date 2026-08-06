@@ -219,7 +219,7 @@ async function handleBjButton(interaction, db, getOrCreateUser, updateUser, addX
   if (interaction.user.id !== ownerId) return interaction.reply({ content: 'Not your game!', ephemeral: true });
 
   const game = bjGames.get(ownerId);
-  if (!game) return interaction.reply({ content: 'No active game found. Start one with /blackjack.', ephemeral: true });
+  if (!game) return interaction.reply({ content: 'No active game found. Start one with /bj.', ephemeral: true });
 
   const user = getOrCreateUser(ownerId, game.username);
 
@@ -288,7 +288,6 @@ async function handleBjStand(interaction, game, ownerId, user, db, updateUser, c
       { name: "Dealer's Hand", value: `${handStr(game.dealer)} — **${dVal}**`, inline: true },
     );
 
-  const fn = interaction.update || interaction.editReply;
   return interaction.update({ embeds: [embed], components: [] });
 }
 
@@ -418,7 +417,6 @@ function handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney
   const channelId = interaction.channelId;
   const user = getOrCreateUser(userId, username);
 
-  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to start a heist!', ephemeral: true });
   if (user.money < 200) return interaction.reply({ content: 'You need at least **200 coins** to start a heist!', ephemeral: true });
   if (activeHeists.has(channelId)) return interaction.reply({ content: 'A heist is already being planned here!', ephemeral: true });
 
@@ -796,16 +794,12 @@ async function handleServerStats(interaction, client) {
   if (!guild) return interaction.reply({ content: 'This command can only be used in a server!', ephemeral: true });
   await guild.members.fetch();
   const total = guild.memberCount;
-  const online = guild.members.cache.filter(m => m.presence?.status && m.presence.status !== 'offline').size;
   const bots = guild.members.cache.filter(m => m.user.bot).size;
   const humans = total - bots;
   const textChannels = guild.channels.cache.filter(c => c.type === 0).size;
   const voiceChannels = guild.channels.cache.filter(c => c.type === 2).size;
   const roles = guild.roles.cache.size - 1;
   const created = `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
-  const uptime = process.uptime();
-  const uptimeStr = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`;
-
   const embed = new EmbedBuilder()
     .setTitle(`📊 ${guild.name} — Server Stats`)
     .setColor(0x5865F2)
@@ -815,7 +809,6 @@ async function handleServerStats(interaction, client) {
       { name: '💬 Channels', value: `Text: **${textChannels}**\nVoice: **${voiceChannels}**`, inline: true },
       { name: '🎭 Roles', value: `**${roles}**`, inline: true },
       { name: '📅 Created', value: created, inline: true },
-      { name: '🤖 Bot Uptime', value: uptimeStr, inline: true },
     );
   return interaction.reply({ embeds: [embed] });
 }
