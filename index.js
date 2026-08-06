@@ -422,7 +422,8 @@ const slashCommands = [
         )))
     .addSubcommand(s => s.setName('status').setDescription('Check your pet'))
     .addSubcommand(s => s.setName('feed').setDescription('Feed your pet (costs 10 coins, 1h cooldown)'))
-    .addSubcommand(s => s.setName('rename').setDescription('Rename your pet').addStringOption(o => o.setName('name').setDescription('New name').setRequired(true))),
+    .addSubcommand(s => s.setName('rename').setDescription('Rename your pet').addStringOption(o => o.setName('name').setDescription('New name').setRequired(true)))
+    .addSubcommand(s => s.setName('release').setDescription('Release your pet (this cannot be undone)')),
   new SlashCommandBuilder().setName('serverstats').setDescription('Show server statistics'),
   new SlashCommandBuilder().setName('slowmode').setDescription('Set channel slowmode')
     .addIntegerOption(o => o.setName('seconds').setDescription('Seconds (0 to disable)').setRequired(true).setMinValue(0).setMaxValue(21600)),

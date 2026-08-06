@@ -794,8 +794,15 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     return interaction.reply({ content: msg });
   }
 
-  if (!sub || !['adopt','status','feed','rename'].includes(sub)) {
-    return interaction.reply({ content: 'Unknown subcommand. Use: `/pet adopt`, `/pet status`, `/pet feed`, `/pet rename`', ephemeral: true });
+  if (!sub || !['adopt','status','feed','rename','release'].includes(sub)) {
+    return interaction.reply({ content: 'Unknown subcommand. Use: `/pet adopt`, `/pet status`, `/pet feed`, `/pet rename`, `/pet release`', ephemeral: true });
+  }
+
+  if (sub === 'release') {
+    const pet = db.prepare('SELECT * FROM pets WHERE user_id = ?').get(userId);
+    if (!pet) return interaction.reply({ content: 'You have no pet to release!', ephemeral: true });
+    db.prepare('DELETE FROM pets WHERE user_id = ?').run(userId);
+    return interaction.reply({ content: `💔 You released **${pet.pet_name}** (${pet.pet_type}) back into the wild. Goodbye!` });
   }
 
   if (sub === 'rename') {
