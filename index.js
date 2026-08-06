@@ -1028,14 +1028,14 @@ function handleHelp(interaction) {
     .setColor(0x5865F2)
     .setDescription('Slash: /ping, /work, etc.\nDot: ' + PREFIX + 'ping, ' + PREFIX + 'work barista, etc.\nBoth work the same way!')
     .addFields(
-      { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /goon /marry /divorce' },
-      { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
-      { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
-      { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog /slowmode /lock /unlock' },
-      { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
-      { name: 'Games', value: '/bj /slots /fish /heist /trivia' },
-      { name: 'Stocks', value: '/stocks market | buy | sell | portfolio' },
-      { name: 'Social', value: '/achievements /loveletter /pet /serverstats' },
+      { name: '🎮 Games', value: '/bj /slots /fish /heist /trivia' },
+      { name: '💰 Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
+      { name: '📈 Stocks', value: '/stocks market /stocks buy /stocks sell /stocks portfolio' },
+      { name: '🐾 Social', value: '/achievements /loveletter /pet' },
+      { name: '🎲 Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /goon /marry /divorce' },
+      { name: '🔧 Utility', value: '/ping /userinfo /mailbox /help' },
+      { name: '🔨 Moderation', value: '/kick /ban /purge /timeout (.to) /setlog /slowmode /lock /unlock' },
+      { name: '👑 Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval /serverstats' },
     );
   return interaction.reply({ embeds: [embed] });
 }
