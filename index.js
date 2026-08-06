@@ -686,7 +686,7 @@ async function handleSlashCommand(interaction) {
   }
 
   switch (commandName) {
-    case 'ping': return interaction.reply('Pong!');
+    case 'ping': return interaction.reply('Pong! 🏓');
     case 'help': return handleHelp(interaction);
     case 'bl': return handleBalance(interaction, userId, username);
     case 'daily': return handleDaily(interaction, userId, username);
