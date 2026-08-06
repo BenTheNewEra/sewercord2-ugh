@@ -957,31 +957,54 @@ function handleBalance(interaction, userId, username) {
   const user = getOrCreateUser(userId, username);
   const level = user.level || levelFromXP(user.xp);
   const xpToNext = xpForLevel(level + 1) - user.xp;
-  const segments = 20;
+  const segments = 15;
   const xpInLevel = user.xp - xpForLevel(level);
   const xpForCur = xpForLevel(level + 1) - xpForLevel(level);
+  const pct = Math.floor((xpInLevel / xpForCur) * 100);
   const filled = Math.floor((xpInLevel / xpForCur) * segments);
-  const bar = '#'.repeat(filled) + '-'.repeat(segments - filled);
+  const bar = '\ud83d\udd9a'.repeat(filled) + '\u2b1c'.repeat(segments - filled);
   const now = new Date();
 
-  const shield = user.shield_until && new Date(user.shield_until) > now ? 'Active' : 'None';
-  const boost = user.xp_boost_until && new Date(user.xp_boost_until) > now ? 'Active' : 'None';
+  // Get rank
+  const all = db.prepare('SELECT * FROM users ORDER BY xp DESC').all();
+  const rank = all.findIndex(u => u.discord_user_id === userId) + 1;
+
+  // Status checks
+  const shieldActive = user.shield_until && new Date(user.shield_until) > now;
+  const boostActive = isXpBoosted(user);
+  const hasCharm = user.lucky_charm === 1;
+  const hasGun = user.rob_bonus === 1;
+  const hasDblDaily = user.daily_boost === 1;
+
+  // Build active effects line
+  const effects = [];
+  if (shieldActive) effects.push('\ud83d\udee1\ufe0f Shield');
+  if (boostActive) effects.push('\ud83d\udd25 XP Boost');
+  if (hasCharm) effects.push('\ud83d\udc84 Lucky Charm');
+  if (hasGun) effects.push('\ud83d\udd2b Gun');
+  if (hasDblDaily) effects.push('\ud83d\udcb0 Double Daily');
+  const effectsStr = effects.length > 0 ? effects.join(' \u2022 ') : '\u2744\ufe0f No active effects';
+
+  // Gamble streak
+  const streak = user.gamble_streak || 0;
+  const streakStr = streak > 0 ? '\ud83d\udd25 ' + streak + ' win streak' : 'No streak';
 
   const colors = [0x95A5A6, 0x3498DB, 0x2ECC71, 0x9B59B6, 0xE67E22, 0xE74C3C, 0xF1C40F, 0x1ABC9C, 0xFF69B4, 0x5865F2];
   const color = colors[Math.min(level, colors.length - 1)];
 
   const embed = new EmbedBuilder()
-    .setTitle(username + "'s Balance")
+    .setTitle('\ud83d\udcbc ' + username + "'s Profile")
     .setColor(color)
     .addFields(
-      { name: 'Coins', value: '**' + fmtNum(user.money) + '**', inline: true },
-      { name: 'Level', value: '**' + level + '**', inline: true },
-      { name: 'XP', value: '**' + fmtNum(user.xp) + '**', inline: true },
-      { name: 'Progress', value: '`' + bar + '` ' + fmtNum(xpToNext) + ' XP to Lvl ' + (level + 1) },
-      { name: 'VC Time', value: formatVcTime(user.vc_minutes || 0), inline: true },
-      { name: 'Shield', value: shield, inline: true },
-      { name: 'Boost', value: boost, inline: true },
-    );
+      { name: '\ud83d\udcb0 Coins', value: '```\n' + fmtNum(user.money) + '\n```', inline: true },
+      { name: '\ud83c\udf96\ufe0f Level', value: '```\n' + level + '\n```', inline: true },
+      { name: '\ud83d\udcca Rank', value: '```\n#' + rank + '/' + all.length + '\n```', inline: true },
+      { name: '\u26a1 XP Progress', value: bar + '\n' + fmtNum(user.xp) + ' XP \u2022 ' + pct + '% to Lvl ' + (level + 1) + ' \u2022 ' + fmtNum(xpToNext) + ' XP to go', inline: false },
+      { name: '\ud83c\udfa4 VC Time', value: formatVcTime(user.vc_minutes || 0), inline: true },
+      { name: '\ud83c\udfb0 Gamble Streak', value: streakStr, inline: true },
+      { name: '\u2728 Active Effects', value: effectsStr, inline: false },
+    )
+    .setFooter({ text: username + ' \u2022 ' + (interaction.guild ? interaction.guild.name : 'Server') });
   return interaction.reply({ embeds: [embed] });
 }
 
@@ -990,7 +1013,18 @@ function handleDaily(interaction, userId, username) {
   const now = new Date();
   if (user.last_daily) {
     const h = (now.getTime() - new Date(user.last_daily).getTime()) / 3600000;
-    if (h < 24) return interaction.reply('Come back in ' + Math.ceil((24 - h) * 60) + 'm!');
+    if (h < 24) {
+      const mins = Math.ceil((24 - h) * 60);
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      const timeStr = (hh > 0 ? hh + 'h ' : '') + mm + 'm';
+      const embed = new EmbedBuilder()
+        .setTitle('\ud83d\udd14 Daily Not Ready')
+        .setColor(0xE74C3C)
+        .setDescription('You already claimed your daily reward!\nCome back in **' + timeStr + '**.')
+        .setFooter({ text: username });
+      return interaction.reply({ embeds: [embed] });
+    }
   }
   let reward = 50 + Math.floor(Math.random() * 100);
   const dblDaily = user.daily_boost === 1;
@@ -1003,9 +1037,25 @@ function handleDaily(interaction, userId, username) {
   const xpGain = boosted ? baseXP * 2 : baseXP;
   const { leveledUp, newLevel } = addXPAndMoney(userId, xpGain, reward);
   updateUser(userId, { last_daily: now.toISOString() });
-  let msg = '**Daily Reward!**\n\n+' + reward + ' coins' + (dblDaily ? ' (Double Daily: 2x!)' : '') + ' | +' + xpGain + ' XP' + (boosted ? ' (boosted)' : '');
-  if (leveledUp) msg += '\n\n**LEVEL UP!** Level ' + newLevel + '!';
-  return interaction.reply(msg);
+  const newBalance = user.money + reward;
+
+  const fields = [
+    { name: '\ud83d\udcb0 Coins Earned', value: '**+' + fmtNum(reward) + '**' + (dblDaily ? ' \u2728 Double Daily!' : ''), inline: true },
+    { name: '\u26a1 XP Earned', value: '**+' + fmtNum(xpGain) + '**' + (boosted ? ' \ud83d\udd25 Boosted!' : ''), inline: true },
+    { name: '\ud83d\udcb3 New Balance', value: '**' + fmtNum(newBalance) + '** coins', inline: true },
+  ];
+
+  if (leveledUp) {
+    fields.push({ name: '\ud83c\udfa6 Level Up!', value: 'You reached **Level ' + newLevel + '** \ud83c\udf89', inline: false });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle('\ud83c\udf81 Daily Reward Claimed!')
+    .setColor(0xF1C40F)
+    .addFields(fields)
+    .setFooter({ text: username + ' \u2022 Next daily in 24h' });
+
+  return interaction.reply({ embeds: [embed] });
 }
 
 function handleWork(interaction, userId, username, options) {
