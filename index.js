@@ -435,14 +435,26 @@ const slashCommands = [
 ].map(cmd => cmd.toJSON());
 
 // Auto-register slash commands to all GUILD_IDS on startup
+// Falls back to every guild the bot is in if GUILD_IDS is empty
 async function autoRegisterCommands() {
+  if (!APP_ID) { console.error('DISCORD_APP_ID env var not set — cannot register slash commands!'); return; }
   const rest = new REST({ version: '10' }).setToken(TOKEN);
-  for (const gid of GUILD_IDS) {
+
+  // Build list: explicit GUILD_IDS + every guild the bot is already in
+  const guildSet = new Set(GUILD_IDS);
+  for (const g of client.guilds.cache.values()) guildSet.add(g.id);
+
+  if (guildSet.size === 0) {
+    console.warn('No guilds found to register commands to.');
+    return;
+  }
+
+  for (const gid of guildSet) {
     try {
       const data = await rest.put(Routes.applicationGuildCommands(APP_ID, gid), { body: slashCommands });
-      console.log('Auto-registered ' + data.length + ' slash commands to guild ' + gid);
+      console.log('Registered ' + data.length + ' slash commands to guild ' + gid);
     } catch (err) {
-      console.error('Failed to register commands to guild ' + gid + ':', err.message);
+      console.error('Failed to register to guild ' + gid + ':', err.message);
     }
   }
 }
