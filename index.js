@@ -1425,47 +1425,70 @@ async function handleLeaderboard(interaction) {
   if (!all.length) return interaction.reply('No users yet!');
 
   const richest = [...all].sort((a, b) => b.money - a.money).slice(0, 10);
-  const highest = [...all].sort((a, b) => b.xp - a.xp).slice(0, 10);
-  const vcTime = [...all].sort((a, b) => (b.vc_minutes || 0) - (a.vc_minutes || 0)).slice(0, 10);
+  const highest = [...all].sort((a, b) => b.xp   - a.xp  ).slice(0, 10);
+  const vcTop   = [...all].sort((a, b) => (b.vc_minutes || 0) - (a.vc_minutes || 0)).slice(0, 10);
 
-  // Fetch display names (nicknames) from the guild
   const displayNames = {};
-  const guild = interaction.guild;
-  if (guild) {
-    for (const p of [...new Set([...richest, ...highest, ...vcTime])]) {
-      try {
-        const member = await guild['members'].fetch(p.discord_user_id);
-        displayNames[p.discord_user_id] = member.displayName || null;
-      } catch {
-        displayNames[p.discord_user_id] = null;
-      }
+  if (interaction.guild) {
+    for (const p of [...new Set([...richest, ...highest, ...vcTop])]) {
+      try { const m = await interaction.guild.members.fetch(p.discord_user_id); displayNames[p.discord_user_id] = m.displayName || null; }
+      catch { displayNames[p.discord_user_id] = null; }
     }
   }
 
-  const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49', '\u0034\ufe0f\u20e3', '\u0035\ufe0f\u20e3', '\u0036\ufe0f\u20e3', '\u0037\ufe0f\u20e3', '\u0038\ufe0f\u20e3', '\u0039\ufe0f\u20e3', '\u0031\u0030\ufe0f\u20e3'];
+  const medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49','4\uFE0F\u20E3','5\uFE0F\u20E3','6\uFE0F\u20E3','7\uFE0F\u20E3','8\uFE0F\u20E3','9\uFE0F\u20E3','\uD83D\uDD1F'];
 
-  function formatLine(p, i, value) {
-    const medal = medals[i] || (i + 1) + '.';
-    const dispName = displayNames[p.discord_user_id];
-    const nameStr = dispName ? '**' + p.username + '** (' + dispName + ')' : '**' + p.username + '**';
-    return medal + ' ' + nameStr + ' \u2014 ' + value;
+  function dname(p) {
+    const d = displayNames[p.discord_user_id];
+    return d && d !== p.username ? `**${d}**` : `**${p.username}**`;
   }
 
-  const richestLines = richest.map((p, i) => formatLine(p, i, fmtNum(p.money) + ' coins')).join('\n');
-  const levelLines = highest.map((p, i) => formatLine(p, i, 'Level ' + levelFromXP(p.xp) + ' (' + fmtNum(p.xp) + ' XP)')).join('\n');
-  const vcLines = vcTime.map((p, i) => formatLine(p, i, formatVcTime(p.vc_minutes || 0))).join('\n');
+  const TABS = {
+    coins: {
+      title: '\uD83D\uDCB0  Richest Users',
+      color: 0xF1C40F,
+      header: '> *The wealthiest members on the server*\n\u200B',
+      lines: richest.map((p, i) => `${medals[i]} ${dname(p)}\n\u2517 \`${fmtNum(p.money)} coins\``),
+    },
+    level: {
+      title: '\uD83D\uDE80  Highest Level',
+      color: 0x2ECC71,
+      header: '> *The most experienced members*\n\u200B',
+      lines: highest.map((p, i) => `${medals[i]} ${dname(p)}\n\u2517 \`Level ${levelFromXP(p.xp)}  \u2022  ${fmtNum(p.xp)} XP\``),
+    },
+    vc: {
+      title: '\uD83C\uDFA4  Most Time in VC',
+      color: 0x9B59B6,
+      header: '> *The most active voice chat members*\n\u200B',
+      lines: vcTop.map((p, i) => `${medals[i]} ${dname(p)}\n\u2517 \`${formatVcTime(p.vc_minutes || 0)}\``),
+    },
+  };
 
-  const embed = new EmbedBuilder()
-    .setTitle('\ud83c\udfc6 Server Leaderboard')
-    .setColor(0x5865F2)
-    .addFields(
-      { name: '\ud83d\udcb0 Richest', value: richestLines || 'No data', inline: false },
-      { name: '\ud83d\ude80 Highest Level', value: levelLines || 'No data', inline: false },
-      { name: '\ud83c\udfa4 Most Time in VC', value: vcLines || 'No data', inline: false },
-    )
-    .setFooter({ text: (interaction.guild ? interaction.guild.name : 'Server') + ' \u2022 ' + all.length + ' users tracked' });
+  function buildEmbed(tab) {
+    const t = TABS[tab];
+    return new EmbedBuilder()
+      .setTitle(t.title)
+      .setColor(t.color)
+      .setDescription(t.header + (t.lines.length ? t.lines.join('\n') : 'No data yet.'))
+      .setFooter({ text: `${interaction.guild ? interaction.guild.name : 'Server'} \u2022 ${all.length} users tracked` });
+  }
 
-  return interaction.reply({ embeds: [embed] });
+  function buildRow(active) {
+    return new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('lb:coins').setLabel('\uD83D\uDCB0 Coins') .setStyle(active === 'coins' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('lb:level').setLabel('\uD83D\uDE80 Level') .setStyle(active === 'level' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('lb:vc')   .setLabel('\uD83C\uDFA4 VC Time').setStyle(active === 'vc'    ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    );
+  }
+
+  const msg = await interaction.reply({ embeds: [buildEmbed('coins')], components: [buildRow('coins')], fetchReply: true });
+
+  const collector = msg.createMessageComponentCollector({ time: 120000 });
+  collector.on('collect', async btn => {
+    const tab = btn.customId.split(':')[1];
+    await btn.update({ embeds: [buildEmbed(tab)], components: [buildRow(tab)] });
+  });
+  collector.on('end', () => { msg.edit({ components: [] }).catch(() => {}); });
 }
 
 function handleUserInfo(interaction, options) {
