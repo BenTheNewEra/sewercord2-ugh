@@ -182,6 +182,7 @@ async function handleBlackjack(interaction, db, getOrCreateUser, updateUser, add
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const amount = interaction.options.getInteger('amount');
+  if (!amount || amount < 100) return interaction.reply({ content: 'Please provide a bet of at least **100 coins**. Usage: `/bj 100`', ephemeral: true });
   const user = getOrCreateUser(userId, username);
   if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to play blackjack!', ephemeral: true });
   if (user.money < amount) return interaction.reply({ content: `You only have ${fmtNum(user.money)} coins!`, ephemeral: true });
@@ -326,6 +327,7 @@ function handleSlots(interaction, getOrCreateUser, updateUser) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const amount = interaction.options.getInteger('amount');
+  if (!amount || amount < 100) return interaction.reply({ content: 'Please provide a bet of at least **100 coins**. Usage: `/slots 100`', ephemeral: true });
   const user = getOrCreateUser(userId, username);
   if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to play slots!', ephemeral: true });
   if (user.money < amount) return interaction.reply({ content: `You only have ${fmtNum(user.money)} coins!`, ephemeral: true });

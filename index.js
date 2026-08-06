@@ -1183,7 +1183,7 @@ function handleWork(interaction, userId, username, options) {
 
 function handleGamble(interaction, userId, username, options) {
   const amount = options.getInteger('amount');
-  if (!amount || amount < 10) return interaction.reply('Minimum bet is 10 coins!');
+  if (!amount || amount < 100) return interaction.reply('Please provide a bet of at least **100 coins**. Usage: `/gamble 100`');
   const user = getOrCreateUser(userId, username);
   if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to gamble!', ephemeral: true });
   if (user.money < amount) return interaction.reply('You only have ' + fmtNum(user.money) + ' coins!');
