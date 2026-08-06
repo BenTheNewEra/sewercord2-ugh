@@ -922,7 +922,6 @@ function handleHelp(interaction) {
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },
-      { name: 'Auto-Mod', value: 'Anti-spam: 7+ identical messages = auto-delete + 60s timeout' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
     );
   return interaction.reply({ embeds: [embed] });
