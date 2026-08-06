@@ -179,6 +179,7 @@ async function handleBlackjack(interaction, db, getOrCreateUser, updateUser, add
   const username = interaction.user.username;
   const amount = interaction.options.getInteger('amount');
   const user = getOrCreateUser(userId, username);
+  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to play blackjack!', ephemeral: true });
   if (user.money < amount) return interaction.reply({ content: `You only have ${fmtNum(user.money)} coins!`, ephemeral: true });
 
   const deck = newDeck();
@@ -323,6 +324,7 @@ function handleSlots(interaction, getOrCreateUser, updateUser) {
   const username = interaction.user.username;
   const amount = interaction.options.getInteger('amount');
   const user = getOrCreateUser(userId, username);
+  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to play slots!', ephemeral: true });
   if (user.money < amount) return interaction.reply({ content: `You only have ${fmtNum(user.money)} coins!`, ephemeral: true });
 
   const reels = [spinSlot(), spinSlot(), spinSlot()];
@@ -416,7 +418,8 @@ function handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney
   const channelId = interaction.channelId;
   const user = getOrCreateUser(userId, username);
 
-  if (user.money < 200) return interaction.reply({ content: 'Need at least 200 coins to start a heist!', ephemeral: true });
+  if (user.money < 100) return interaction.reply({ content: 'You need at least **100 coins** to start a heist!', ephemeral: true });
+  if (user.money < 200) return interaction.reply({ content: 'You need at least **200 coins** to start a heist!', ephemeral: true });
   if (activeHeists.has(channelId)) return interaction.reply({ content: 'A heist is already being planned here!', ephemeral: true });
 
   const target = rnd(1000, 5000);
