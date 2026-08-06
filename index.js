@@ -519,6 +519,21 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
     // Only respond to commands in the configured guild
     if (GUILD_IDS.length && !GUILD_IDS.includes(message.guild.id)) return;
+
+    // Real-time mention capture for mailbox (deduplicated by message_id)
+    if (message.mentions.users.size > 0) {
+      for (const mention of message.mentions.users.values()) {
+        if (mention.id === message.author.id) continue;
+        if (mention.id === client.user.id) continue;
+        const alreadyExists = db.prepare('SELECT id FROM mailbox WHERE message_id = ? AND mentioned_user_id = ?').get(message.id, mention.id);
+        if (!alreadyExists) {
+          db.prepare('INSERT INTO mailbox (channel_id, mentioned_user_id, message_content, message_id, sender_id, sender_name) VALUES (?, ?, ?, ?, ?, ?)').run(
+            message.channelId, mention.id, message.content ? message.content.substring(0, 900) : '', message.id, message.author.id, message.author.username
+          );
+        }
+      }
+    }
+
     const content = message.content.trim();
     if (!content.startsWith(PREFIX)) return;
 
@@ -597,14 +612,6 @@ function pollMessages() {
           const existing = userMsgs.get(msg.author.id);
           if (existing) existing.count++;
           else userMsgs.set(msg.author.id, { username: msg.author.username, count: 1 });
-
-          for (const mention of msg['mentions'].users.values()) {
-            if (mention.id === msg.author.id) continue;
-            if (mention.id === client.user.id) continue;
-            db.prepare('INSERT INTO mailbox (channel_id, mentioned_user_id, message_content, message_id, sender_id, sender_name) VALUES (?, ?, ?, ?, ?, ?)').run(
-              channelId, mention.id, msg.content ? msg.content.substring(0, 1024) : '', msg.id, msg.author.id, msg.author.username
-            );
-          }
 
           if (!newestId || msg.id > newestId) newestId = msg.id;
         }
@@ -1421,17 +1428,22 @@ function buildMailbox(userId, page) {
   const embed = new EmbedBuilder()
     .setTitle('Mailbox')
     .setColor(0x5865F2)
-    .addFields(items.map(m => ({
-      name: 'From **' + (m.sender_name || 'Unknown') + '** in <#' + m.channel_id + '>',
-      value: (m['message_content'] || '(no content)') + '\n' + (m.read ? 'Read' : 'New')
-    })))
+    .addFields(items.map(m => {
+      const content = (m.message_content || '*(no content)*').substring(0, 800);
+      const badge = m.read ? '✅ Read' : '🔵 New';
+      const ts = m.created_date ? `<t:${Math.floor(new Date(m.created_date).getTime() / 1000)}:R>` : '';
+      return {
+        name: (m.read ? '' : '🔵 ') + 'From **' + (m.sender_name || 'Unknown') + '** in <#' + m.channel_id + '>',
+        value: content + '\n' + badge + (ts ? ' • ' + ts : ''),
+      };
+    }))
     .setFooter({ text: mentions.length + ' mentions total' });
 
   const row = new ActionRowBuilder();
   if (totalPages > 1) {
     row.addComponents(
       new ButtonBuilder().setCustomId('mb_prev:' + userId + ':' + pageIdx).setLabel('Prev').setStyle(ButtonStyle.Secondary).setDisabled(pageIdx === 0),
-      new ButtonBuilder().setCustomId('mb_page').setLabel('Page ' + (pageIdx + 1) + '/' + totalPages).setStyle(ButtonStyle.Secondary).setDisabled(true),
+      new ButtonBuilder().setCustomId('mb_page:' + userId + ':' + pageIdx).setLabel('Page ' + (pageIdx + 1) + '/' + totalPages).setStyle(ButtonStyle.Secondary).setDisabled(true),
       new ButtonBuilder().setCustomId('mb_next:' + userId + ':' + pageIdx).setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(pageIdx >= totalPages - 1),
     );
   }
@@ -1443,7 +1455,7 @@ function buildMailbox(userId, page) {
 
 function handleMailbox(interaction, userId) {
   const result = buildMailbox(userId, 0);
-  return interaction.reply({ embeds: [result.embed], components: result.components });
+  return interaction.reply({ embeds: [result.embed], components: result.components, ephemeral: true });
 }
 
 client.login(TOKEN);
