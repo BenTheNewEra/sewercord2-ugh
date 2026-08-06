@@ -74,7 +74,9 @@ function initFeatureTables(db) {
       level INTEGER DEFAULT 1,
       xp INTEGER DEFAULT 0,
       last_fed TEXT DEFAULT '',
-      happiness INTEGER DEFAULT 100
+      happiness INTEGER DEFAULT 100,
+      evo_stage INTEGER DEFAULT 0,
+      evo_name TEXT DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS trivia_scores (
       user_id TEXT PRIMARY KEY,
@@ -82,6 +84,10 @@ function initFeatureTables(db) {
       wrong INTEGER DEFAULT 0
     );
   `);
+
+  // Migrate pets table: add evo columns if missing
+  try { db.exec("ALTER TABLE pets ADD COLUMN evo_stage INTEGER DEFAULT 0"); } catch {}
+  try { db.exec("ALTER TABLE pets ADD COLUMN evo_name TEXT DEFAULT ''"); } catch {}
 
   // Remove old stocks that no longer exist
   db.prepare("DELETE FROM stocks WHERE symbol IN ('GOON', 'GRAPE')").run();
@@ -723,6 +729,67 @@ async function handleTriviaButton(interaction, db, getOrCreateUser, updateUser, 
 // ════════════════════════════════════════════════════════════
 const PET_TYPES = ['🐶 Dog', '🐱 Cat', '🐹 Hamster', '🦊 Fox', '🐸 Frog', '🐧 Penguin', '🦎 Lizard', '🐺 Wolf'];
 
+// Evolution stages per pet type: [stage0_base, stage1_lv5, stage2_lv10]
+// Each stage: { emoji, label, description }
+const PET_EVOLUTIONS = {
+  '🐶 Dog':     [
+    { emoji: '🐶', label: 'Puppy',      desc: 'A tiny fluffy pup, full of energy.' },
+    { emoji: '🐕', label: 'Dog',        desc: 'Grown up and loyal — will follow you anywhere.' },
+    { emoji: '🦴', label: 'Alpha Dog',  desc: 'Powerful and wise. Other dogs bow before them.' },
+  ],
+  '🐱 Cat':     [
+    { emoji: '🐱', label: 'Kitten',     desc: 'Tiny and curious, knocks things off tables already.' },
+    { emoji: '🐈', label: 'Cat',        desc: 'Independent and elegant. Condescending stare included.' },
+    { emoji: '😼', label: 'Shadow Cat', desc: 'Moves silently through darkness. May or may not be a demon.' },
+  ],
+  '🐹 Hamster': [
+    { emoji: '🐹', label: 'Hamster',    desc: 'Stuffs its cheeks and runs on a wheel all night.' },
+    { emoji: '🐭', label: 'Mega Hmstr', desc: 'Surprisingly strong. Wheel spinning at dangerous RPM.' },
+    { emoji: '⚡', label: 'Thunderpaw', desc: 'Generates electricity from sheer wheel momentum.' },
+  ],
+  '🦊 Fox':     [
+    { emoji: '🦊', label: 'Fox Kit',    desc: 'Mischievous and playful. Already plotting something.' },
+    { emoji: '🔶', label: 'Fox',        desc: 'Cunning and fast. Outsmarts everyone in the room.' },
+    { emoji: '🌌', label: 'Spirit Fox', desc: 'Said to cross between worlds. Glows faintly at night.' },
+  ],
+  '🐸 Frog':    [
+    { emoji: '🥚', label: 'Tadpole',    desc: 'Wiggles around in water, figuring out legs.' },
+    { emoji: '🐸', label: 'Frog',       desc: "Croaks loudly at 3am. You didn't sleep anyway." },
+    { emoji: '👑', label: 'Frog King',  desc: 'Wears an invisible crown. Commands rain itself.' },
+  ],
+  '🐧 Penguin': [
+    { emoji: '🐣', label: 'Chick',      desc: 'Fluffy and round. Waddles even when stationary.' },
+    { emoji: '🐧', label: 'Penguin',    desc: 'Formally dressed at all times. Very professional.' },
+    { emoji: '❄️', label: 'Frost Lord', desc: 'Commands blizzards. Never slips on ice.' },
+  ],
+  '🦎 Lizard':  [
+    { emoji: '🦎', label: 'Lizard',     desc: 'Flicks tongue at everything. Sunbathes constantly.' },
+    { emoji: '🐊', label: 'Reptile',    desc: 'Cold-blooded and calculating. Respects no one.' },
+    { emoji: '🐉', label: 'Mini Dragon',desc: 'Technically a dragon. Breathes very small flames.' },
+  ],
+  '🐺 Wolf':    [
+    { emoji: '🐺', label: 'Wolf Pup',   desc: 'Howls at the moon. Has no idea what the moon is yet.' },
+    { emoji: '🌕', label: 'Wolf',       desc: 'Runs with the pack. Intimidating yellow eyes.' },
+    { emoji: '💀', label: 'Dire Wolf',  desc: 'Ancient and feared. The forest goes quiet when it walks.' },
+  ],
+};
+
+// Get the current evolution stage object for a pet
+function getPetEvolution(petType, level) {
+  const stages = PET_EVOLUTIONS[petType];
+  if (!stages) return { emoji: '🐾', label: petType, desc: '' };
+  if (level >= 10) return stages[2];
+  if (level >= 5)  return stages[1];
+  return stages[0];
+}
+
+// Check if a level-up triggers an evolution
+function getEvolutionThreshold(oldLevel, newLevel) {
+  if (oldLevel < 5  && newLevel >= 5)  return 1;
+  if (oldLevel < 10 && newLevel >= 10) return 2;
+  return null;
+}
+
 function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) {
   const sub = interaction.options.getSubcommand();
   const userId = interaction.user.id;
@@ -740,8 +807,8 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
       const list = PET_TYPES.join('\n');
       return interaction.reply({ content: `Unknown pet type! Choose from:\n${list}`, ephemeral: true });
     }
-    db.prepare('INSERT INTO pets (user_id, pet_name, pet_type, level, xp, last_fed, happiness) VALUES (?, ?, ?, 1, 0, ?, 100)')
-      .run(userId, petName.trim(), petType, new Date().toISOString());
+    db.prepare('INSERT INTO pets (user_id, pet_name, pet_type, level, xp, last_fed, happiness, evo_stage, evo_name) VALUES (?, ?, ?, 1, 0, ?, 100, 0, ?)')
+      .run(userId, petName.trim(), petType, new Date().toISOString(), '');
     const badges = checkAndAward(userId, username, ['first_pet']);
     const embed = new EmbedBuilder().setTitle('🐾 New Pet!').setColor(0x2ECC71)
       .setDescription(`You adopted a **${petType}** and named them **${petName.trim()}**! 🎉\n\nFeed them every hour with /pet feed to keep them happy and level them up!`);
@@ -752,14 +819,26 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
   if (sub === 'status') {
     const pet = db.prepare('SELECT * FROM pets WHERE user_id = ?').get(userId);
     if (!pet) return interaction.reply({ content: 'You have no pet! Adopt one with /pet adopt.', ephemeral: true });
+    const evo = getPetEvolution(pet.pet_type, pet.level);
+    const displayName = pet.evo_name && pet.evo_name.trim() ? pet.evo_name.trim() : evo.label;
     const happyBar = '💚'.repeat(Math.floor(pet.happiness / 10)) + '🖤'.repeat(10 - Math.floor(pet.happiness / 10));
-    const embed = new EmbedBuilder().setTitle(`🐾 ${pet.pet_name}`)
-      .setColor(0xFF69B4)
+    // Next evolution info
+    let nextEvoText = '';
+    if (pet.level < 5)       nextEvoText = `Evolves at **Level 5** → ${PET_EVOLUTIONS[pet.pet_type] ? PET_EVOLUTIONS[pet.pet_type][1].emoji + ' ' + PET_EVOLUTIONS[pet.pet_type][1].label : '?'}`;
+    else if (pet.level < 10) nextEvoText = `Evolves at **Level 10** → ${PET_EVOLUTIONS[pet.pet_type] ? PET_EVOLUTIONS[pet.pet_type][2].emoji + ' ' + PET_EVOLUTIONS[pet.pet_type][2].label : '?'}`;
+    else                     nextEvoText = '✨ **Max evolution reached!**';
+    const stageStars = ['⚪', '🟡', '🔴'][pet.evo_stage || 0];
+    const embed = new EmbedBuilder()
+      .setTitle(`${evo.emoji} ${pet.pet_name} — ${displayName}`)
+      .setColor(pet.level >= 10 ? 0xE74C3C : pet.level >= 5 ? 0xF1C40F : 0xFF69B4)
+      .setDescription(`*${evo.desc}*`)
       .addFields(
-        { name: 'Type', value: pet.pet_type, inline: true },
+        { name: 'Species', value: pet.pet_type, inline: true },
+        { name: 'Stage', value: `${stageStars} Stage ${pet.evo_stage || 0}`, inline: true },
         { name: 'Level', value: String(pet.level), inline: true },
         { name: 'XP', value: `${pet.xp} / ${pet.level * 100}`, inline: true },
-        { name: 'Happiness', value: `${happyBar} ${pet.happiness}%`, inline: false },
+        { name: 'Happiness', value: `${happyBar} ${pet.happiness}%`, inline: true },
+        { name: 'Next Evolution', value: nextEvoText, inline: false },
       );
     return interaction.reply({ embeds: [embed] });
   }
@@ -786,16 +865,28 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     const newLevel = leveledUp ? pet.level + 1 : pet.level;
     const newXP = leveledUp ? rawXP - threshold : rawXP;
     const newHappiness = Math.min(100, pet.happiness + 15);
-    db.prepare('UPDATE pets SET xp = ?, level = ?, last_fed = ?, happiness = ? WHERE user_id = ?')
-      .run(newXP, newLevel, now.toISOString(), newHappiness, userId);
 
+    // Check for evolution
+    const evoThreshold = leveledUp ? getEvolutionThreshold(pet.level, newLevel) : null;
+    const newEvoStage = evoThreshold !== null ? evoThreshold : (pet.evo_stage || 0);
+    db.prepare('UPDATE pets SET xp = ?, level = ?, last_fed = ?, happiness = ?, evo_stage = ? WHERE user_id = ?')
+      .run(newXP, newLevel, now.toISOString(), newHappiness, newEvoStage, userId);
+
+    const evo = getPetEvolution(pet.pet_type, newLevel);
+    const displayName = pet.evo_name && pet.evo_name.trim() ? pet.evo_name.trim() : evo.label;
     let msg = `🍖 You fed **${pet.pet_name}**! +${xpGain} XP (${newXP}/${newLevel * 100}), happiness: ${newHappiness}%.`;
-    if (leveledUp) msg += `\n\n🎉 **${pet.pet_name} leveled up to Level ${newLevel}!**`;
+    if (leveledUp) {
+      msg += `\n\n🎉 **${pet.pet_name} leveled up to Level ${newLevel}!**`;
+      if (evoThreshold !== null) {
+        const stageStars = ['⚪','🟡','🔴'][newEvoStage];
+        msg += `\n\n✨ **${pet.pet_name} evolved into ${evo.emoji} ${displayName}!** ${stageStars} Stage ${newEvoStage}\n*${evo.desc}*\n\nUse \`/pet rename\` to give your evolved form a custom name!`;
+      }
+    }
     return interaction.reply({ content: msg });
   }
 
   if (!sub || !['adopt','status','feed','rename','release'].includes(sub)) {
-    return interaction.reply({ content: 'Unknown subcommand. Use: `/pet adopt`, `/pet status`, `/pet feed`, `/pet rename`, `/pet release`', ephemeral: true });
+    return interaction.reply({ content: 'Unknown subcommand. Use: `/pet adopt`, `/pet status`, `/pet feed`, `/pet rename`, `/pet release`\nPets evolve at **Level 5** and **Level 10** — use `/pet rename` to name each form!', ephemeral: true });
   }
 
   if (sub === 'release') {
@@ -810,8 +901,11 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     if (!pet) return interaction.reply({ content: 'You have no pet!', ephemeral: true });
     const newName = interaction.options.getString('name');
     if (!newName || !newName.trim()) return interaction.reply({ content: 'Please provide a new name! e.g. `/pet rename Buddy`', ephemeral: true });
-    db.prepare('UPDATE pets SET pet_name = ? WHERE user_id = ?').run(newName.trim(), userId);
-    return interaction.reply({ content: `✅ Your pet has been renamed to **${newName.trim()}**!` });
+    // pet_name is the nickname; evo_name is the custom evolution form name
+    // /pet rename updates both — the species nickname AND the evolution form name
+    db.prepare('UPDATE pets SET pet_name = ?, evo_name = ? WHERE user_id = ?').run(newName.trim(), newName.trim(), userId);
+    const evo = getPetEvolution(pet.pet_type, pet.level);
+    return interaction.reply({ content: `✅ **${pet.pet_name}** → **${newName.trim()}** (${evo.emoji} ${newName.trim()})` });
   }
 }
 
