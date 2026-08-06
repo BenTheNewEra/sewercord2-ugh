@@ -372,6 +372,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('kick').setDescription('Kick a user').addUserOption(o => o.setName('user').setDescription('Who to kick').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('ban').setDescription('Ban a user').addUserOption(o => o.setName('user').setDescription('Who to ban').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('purge').setDescription('Delete messages').addIntegerOption(o => o.setName('amount').setDescription('How many (1-100)').setRequired(true).setMinValue(1).setMaxValue(100)),
+  new SlashCommandBuilder().setName('resetall').setDescription('WIPE all user data: coins, XP, levels, pets, stocks, achievements (owner only)'),
   new SlashCommandBuilder().setName('timeout').setDescription('Timeout a user').addUserOption(o => o.setName('user').setDescription('Who to timeout').setRequired(true)).addIntegerOption(o => o.setName('duration').setDescription('Duration in seconds (default: 5 min)').setMinValue(1).setMaxValue(2419200)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('setlog').setDescription('Set log channel').addChannelOption(o => o.setName('channel').setDescription('Log channel').setRequired(true)),
   new SlashCommandBuilder().setName('givecoins').setDescription('Owner: Give coins').addUserOption(o => o.setName('user').setDescription('User to give coins to').setRequired(true)).addIntegerOption(o => o.setName('amount').setDescription('Amount of coins').setRequired(true).setMinValue(1)),
@@ -576,7 +577,7 @@ client.on('messageCreate', async (message) => {
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
       'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock',
-      'pet', 'stocks', 'loveletter'
+      'pet', 'stocks', 'loveletter', 'resetall'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -909,6 +910,19 @@ async function handleSlashCommand(interaction) {
         return interaction.reply('Banned <@' + target.id + '>. Reason: ' + reason);
       } catch { return interaction.reply('Failed to ban (need Ban Members permission).'); }
     }
+    case 'resetall': {
+      if (interaction.user.id !== interaction.guild.ownerId) {
+        return interaction.reply({ content: '❌ Only the server owner can do this.', ephemeral: true });
+      }
+      db.prepare('DELETE FROM users').run();
+      try { db.prepare('DELETE FROM pets').run(); } catch {}
+      try { db.prepare('DELETE FROM stock_portfolio').run(); } catch {}
+      try { db.prepare('DELETE FROM achievements').run(); } catch {}
+      db.prepare('DELETE FROM marriages').run();
+      db.prepare('DELETE FROM mailbox').run();
+      return interaction.reply({ content: '🗑️ All server data wiped — coins, XP, levels, pets, stocks, achievements, marriages, and mailbox have all been reset.', ephemeral: true });
+    }
+
     case 'purge': {
       const amount = Math.min(interaction.options.getInteger('amount') || 1, 100);
       await interaction.deferReply({ ephemeral: true });
