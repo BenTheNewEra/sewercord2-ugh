@@ -30,7 +30,7 @@ const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
 const PREFIX = process.env.PREFIX || '.';
 const GRAPE_GIFS = (process.env.GRAPE_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
 const BEAT_GIFS = (process.env.BEAT_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
-const GOONING_GIFS = (process.env.GOONING_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
+const GOON_GIFS = (process.env.GOON_GIF || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const ownerId = process.env.OWNER_ID;
 const extraOwnerIds = (process.env.EXTRA_OWNER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -102,7 +102,7 @@ const CMD_ARGS = {
   define: ['word:rest'],
   grape: ['user:user?'],
   beat: ['user:user?'],
-  gooning: ['user:user?'],
+  goon: ['user:user?'],
   userinfo: ['user:user?'],
   kick: ['user:user', 'reason:rest?'],
   ban: ['user:user', 'reason:rest?'],
@@ -323,7 +323,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('define').setDescription('Define a word').addStringOption(o => o.setName('word').setDescription('Word to define').setRequired(true)),
   new SlashCommandBuilder().setName('grape').setDescription('Throw grapes').addUserOption(o => o.setName('user').setDescription('Who to grape')),
   new SlashCommandBuilder().setName('beat').setDescription('Pillow fight').addUserOption(o => o.setName('user').setDescription('Who to beat')),
-  new SlashCommandBuilder().setName('gooning').setDescription('Gooning time').addUserOption(o => o.setName('user').setDescription('Who to goon with')),
+  new SlashCommandBuilder().setName('goon').setDescription('Gooning time').addUserOption(o => o.setName('user').setDescription('Who to goon with')),
   new SlashCommandBuilder().setName('userinfo').setDescription('Show user info').addUserOption(o => o.setName('user').setDescription('User to look up')),
   new SlashCommandBuilder().setName('kick').setDescription('Kick a user').addUserOption(o => o.setName('user').setDescription('Who to kick').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('ban').setDescription('Ban a user').addUserOption(o => o.setName('user').setDescription('Who to ban').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
@@ -465,7 +465,7 @@ client.on('messageCreate', async (message) => {
     const dotCommands = [
       'ping', 'help', 'bl', 'daily', 'work', 'gamble', 'pay', 'rob', 'shop', 'buy',
       'rank', 'lb', 'roll', 'coinflip', '8ball', 'choose', 'cookie', 'pray', 'curse',
-      'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'gooning', 'userinfo', 'mailbox',
+      'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'goon', 'userinfo', 'mailbox',
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout'
@@ -755,12 +755,12 @@ async function handleSlashCommand(interaction) {
       }
       return interaction.reply(beatText);
     }
-    case 'gooning': {
+    case 'goon': {
       const t = interaction.options.getUser('user');
-      if (!t) return interaction.reply('Mention someone to goon with! Or reply to their message with .gooning');
-      const goonText = '<@' + userId + '> is gooning with <@' + t.id + '>! 🤫';
-      if (GOONING_GIFS.length > 0) {
-        const gif = GOONING_GIFS[Math.floor(Math.random() * GOONING_GIFS.length)];
+      if (!t) return interaction.reply('Mention someone to goon to! Or reply to their message with .goon');
+      const goonText = '<@' + userId + '> is gooning to <@' + t.id + '>';
+      if (GOON_GIFS.length > 0) {
+        const gif = GOON_GIFS[Math.floor(Math.random() * GOON_GIFS.length)];
         const goonEmbed = new EmbedBuilder().setDescription(goonText).setImage(gif).setColor(0x5865F2);
         return interaction.reply({ embeds: [goonEmbed] });
       }
@@ -932,7 +932,7 @@ function handleHelp(interaction) {
     .setColor(0x5865F2)
     .setDescription('Slash: /ping, /work, etc.\nDot: ' + PREFIX + 'ping, ' + PREFIX + 'work barista, etc.\nBoth work the same way!')
     .addFields(
-      { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /gooning /marry /divorce' },
+      { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /goon /marry /divorce' },
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },

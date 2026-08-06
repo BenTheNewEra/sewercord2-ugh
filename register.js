@@ -52,7 +52,7 @@ const commands = [
   new SlashCommandBuilder().setName('define').setDescription('Define a word').addStringOption(o => o.setName('word').setDescription('Word to define').setRequired(true)),
   new SlashCommandBuilder().setName('grape').setDescription('Throw grapes').addUserOption(o => o.setName('user').setDescription('Who to grape')),
   new SlashCommandBuilder().setName('beat').setDescription('Pillow fight').addUserOption(o => o.setName('user').setDescription('Who to beat')),
-  new SlashCommandBuilder().setName('gooning').setDescription('Gooning time').addUserOption(o => o.setName('user').setDescription('Who to goon with')),
+  new SlashCommandBuilder().setName('goon').setDescription('Gooning time').addUserOption(o => o.setName('user').setDescription('Who to goon with')),
   new SlashCommandBuilder().setName('userinfo').setDescription('Show user info').addUserOption(o => o.setName('user').setDescription('User to look up')),
   new SlashCommandBuilder().setName('kick').setDescription('Kick a user').addUserOption(o => o.setName('user').setDescription('Who to kick').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('ban').setDescription('Ban a user').addUserOption(o => o.setName('user').setDescription('Who to ban').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
