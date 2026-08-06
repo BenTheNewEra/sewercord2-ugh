@@ -23,7 +23,24 @@ const {
   getMarriage, createMarriage, deleteMarriage
 } = require('./database');
 
+const {
+  initFeatureTables, checkAndAwardAchievements,
+  handleBlackjack, handleBjButton,
+  handleSlots, handleFish,
+  handleHeist, handleHeistButton,
+  handleStocks, fluctuateStocks,
+  handleLoveLetter,
+  handleTrivia, handleTriviaButton,
+  handlePet,
+  handleAchievements,
+  handleServerStats, handleSlowmode,
+  handleLock, handleUnlock,
+} = require('./features');
+
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
+
+// Init extended feature tables
+initFeatureTables(db);
 const APP_ID = process.env.DISCORD_APP_ID;
 const GUILD_IDS = (process.env.GUILD_ID || '').split(',').map(s => s.trim()).filter(Boolean);
 const LEVELUP_CHANNEL_ID = process.env.LEVELUP_CHANNEL_ID || '';
@@ -123,6 +140,9 @@ const CMD_ARGS = {
   setbump: ['channel:channel'],
   setbumpinterval: ['hours:int?', 'minutes:int?'],
   marry: ['user:user'],
+  blackjack: ['amount:int'],
+  slots: ['amount:int'],
+  slowmode: ['seconds:int'],
 };
 
 class MsgAdapter {
@@ -353,6 +373,39 @@ const slashCommands = [
   new SlashCommandBuilder().setName('setbumpinterval').setDescription('Owner: Set bump interval').addIntegerOption(o => o.setName('hours').setDescription('Hours between bump reminders').setMinValue(0).setMaxValue(24)).addIntegerOption(o => o.setName('minutes').setDescription('Minutes between bump reminders').setMinValue(0).setMaxValue(59)),
   new SlashCommandBuilder().setName('marry').setDescription('Propose to someone').addUserOption(o => o.setName('user').setDescription('Who to propose to').setRequired(true)),
   new SlashCommandBuilder().setName('divorce').setDescription('Divorce your spouse'),
+  // ── New Features ──
+  new SlashCommandBuilder().setName('blackjack').setDescription('Play blackjack against the dealer')
+    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(10)),
+  new SlashCommandBuilder().setName('slots').setDescription('Spin the slot machine')
+    .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(10)),
+  new SlashCommandBuilder().setName('fish').setDescription('Go fishing and catch fish to sell (2m cooldown)'),
+  new SlashCommandBuilder().setName('heist').setDescription('Plan a heist with other members'),
+  new SlashCommandBuilder().setName('stocks').setDescription('Stock market commands')
+    .addSubcommand(s => s.setName('market').setDescription('View current stock prices'))
+    .addSubcommand(s => s.setName('portfolio').setDescription('View your portfolio'))
+    .addSubcommand(s => s.setName('buy').setDescription('Buy shares')
+      .addStringOption(o => o.setName('symbol').setDescription('Stock symbol').setRequired(true))
+      .addIntegerOption(o => o.setName('shares').setDescription('Number of shares').setRequired(true).setMinValue(1)))
+    .addSubcommand(s => s.setName('sell').setDescription('Sell shares')
+      .addStringOption(o => o.setName('symbol').setDescription('Stock symbol').setRequired(true))
+      .addIntegerOption(o => o.setName('shares').setDescription('Number of shares').setRequired(true).setMinValue(1))),
+  new SlashCommandBuilder().setName('achievements').setDescription('View your achievements'),
+  new SlashCommandBuilder().setName('loveletter').setDescription('Send or read love letters')
+    .addSubcommand(s => s.setName('send').setDescription('Send an anonymous love letter')
+      .addUserOption(o => o.setName('user').setDescription('Who to send it to').setRequired(true))
+      .addStringOption(o => o.setName('message').setDescription('Your message').setRequired(true)))
+    .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters')),
+  new SlashCommandBuilder().setName('trivia').setDescription('Answer a trivia question for coins'),
+  new SlashCommandBuilder().setName('pet').setDescription('Pet system')
+    .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet').addStringOption(o => o.setName('name').setDescription('Name your pet').setRequired(true)))
+    .addSubcommand(s => s.setName('status').setDescription('Check your pet'))
+    .addSubcommand(s => s.setName('feed').setDescription('Feed your pet (costs 10 coins, 4h cooldown)'))
+    .addSubcommand(s => s.setName('rename').setDescription('Rename your pet').addStringOption(o => o.setName('name').setDescription('New name').setRequired(true))),
+  new SlashCommandBuilder().setName('serverstats').setDescription('Show server statistics'),
+  new SlashCommandBuilder().setName('slowmode').setDescription('Set channel slowmode')
+    .addIntegerOption(o => o.setName('seconds').setDescription('Seconds (0 to disable)').setRequired(true).setMinValue(0).setMaxValue(21600)),
+  new SlashCommandBuilder().setName('lock').setDescription('Lock the current channel'),
+  new SlashCommandBuilder().setName('unlock').setDescription('Unlock the current channel'),
 ].map(cmd => cmd.toJSON());
 
 // Auto-register slash commands to all GUILD_IDS on startup
@@ -389,6 +442,7 @@ client.once('ready', async () => {
   setInterval(checkBumpReminder, 300000);
   setInterval(pollMessages, 300000);
   setInterval(trackVoiceChannels, 60000);
+  setInterval(() => fluctuateStocks(db), 300000);
 });
 
 // --- Anti-Spam System ---
@@ -480,7 +534,8 @@ client.on('messageCreate', async (message) => {
       'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'goon', 'userinfo', 'mailbox',
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
-      'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout'
+      'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
+      'blackjack', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -614,6 +669,18 @@ async function handleButton(interaction) {
     }
     updateRobbery(robberyId, { status: 'stopped' });
     return interaction.update({ content: robbery.victim_name + ' defended themselves! ' + robbery.robber_name + "'s robbery was stopped!", components: [] });
+  }
+
+  if (customId.startsWith('bj_hit:') || customId.startsWith('bj_stand:')) {
+    return handleBjButton(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+  }
+
+  if (customId.startsWith('heist_join:') || customId.startsWith('heist_start:')) {
+    return handleHeistButton(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+  }
+
+  if (customId.startsWith('trivia_ans:')) {
+    return handleTriviaButton(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
   }
 
   if (customId === 'poll_yes' || customId === 'poll_no') {
@@ -928,6 +995,21 @@ async function handleSlashCommand(interaction) {
       deleteMarriage(userId);
       return interaction.reply('💔 **' + username + '** and **' + spouseName + '** are now divorced. It was a good run.');
     }
+
+    // ── New Feature Commands ──
+    case 'blackjack': return handleBlackjack(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'slots': return handleSlots(interaction, getOrCreateUser, updateUser);
+    case 'fish': return handleFish(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'heist': return handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'stocks': return handleStocks(interaction, db, getOrCreateUser, updateUser);
+    case 'achievements': return handleAchievements(interaction, db);
+    case 'loveletter': return handleLoveLetter(interaction, db, client);
+    case 'trivia': return handleTrivia(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'pet': return handlePet(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'serverstats': return handleServerStats(interaction, client);
+    case 'slowmode': return handleSlowmode(interaction);
+    case 'lock': return handleLock(interaction);
+    case 'unlock': return handleUnlock(interaction);
   }
 
   if (!['ping', 'help', 'shop', 'bl', 'rank', 'lb', 'mailbox', ...ownerCmds].includes(commandName)) {
@@ -947,8 +1029,11 @@ function handleHelp(interaction) {
       { name: 'Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /goon /marry /divorce' },
       { name: 'Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
-      { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog' },
+      { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog /slowmode /lock /unlock' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
+      { name: 'Games', value: '/blackjack /slots /fish /heist /trivia' },
+      { name: 'Stocks', value: '/stocks market | buy | sell | portfolio' },
+      { name: 'Social', value: '/achievements /loveletter /pet /serverstats' },
     );
   return interaction.reply({ embeds: [embed] });
 }
