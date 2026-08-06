@@ -465,7 +465,7 @@ client.on('messageCreate', async (message) => {
       'bell', 'rate', 'poll', 'define', 'grape', 'beat', 'userinfo', 'mailbox',
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
-      'setbump', 'setbumpinterval', 'marry', 'divorce'
+      'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -1171,7 +1171,7 @@ async function handleLeaderboard(interaction) {
       { name: '\ud83d\ude80 Highest Level', value: levelLines || 'No data', inline: false },
       { name: '\ud83c\udfa4 Most Time in VC', value: vcLines || 'No data', inline: false },
     )
-    .setFooter({ text: interaction.guild.name + ' \u2022 ' + all.length + ' users tracked' });
+    .setFooter({ text: (interaction.guild ? interaction.guild.name : 'Server') + ' \u2022 ' + all.length + ' users tracked' });
 
   return interaction.reply({ embeds: [embed] });
 }
