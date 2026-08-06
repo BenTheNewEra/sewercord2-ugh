@@ -859,7 +859,7 @@ async function handleSlashCommand(interaction) {
     }
     case 'beat': {
       const t = interaction.options.getUser('user');
-      const beatText = username + ' beat ' + (t ? '<@' + t.id + '>' : 'the air') + ' with a pillow!';
+      const beatText = username + ' is beating ' + (t ? '<@' + t.id + '>' : 'the air') + '!';
       if (BEAT_GIFS.length > 0) {
         const gif = BEAT_GIFS[Math.floor(Math.random() * BEAT_GIFS.length)];
         const beatEmbed = new EmbedBuilder().setDescription(beatText).setImage(gif).setColor(0x5865F2);
