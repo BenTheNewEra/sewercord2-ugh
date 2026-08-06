@@ -847,16 +847,25 @@ async function handleSlashCommand(interaction) {
     return interaction.reply({ content: 'Owner only command!', ephemeral: true });
   }
 
-  // --- Moderation permission checks (before switch so it always runs) ---
-  const modPerms = {
-    kick: 'KickMembers',
-    ban: 'BanMembers',
-    purge: 'ManageMessages',
-    timeout: 'ModerateMembers',
-    to: 'ModerateMembers',
-  };
-  if (modPerms[commandName] && (!interaction.member || !interaction.member.permissions.has(PermissionFlagsBits[modPerms[commandName]]))) {
-    return interaction.reply({ content: 'You dont have perms to do that.', ephemeral: true });
+  // --- Moderation permission checks ---
+  // kick / ban / timeout / to  →  server owner OR Administrator only
+  const ownerOrAdminCmds = ['kick', 'ban', 'timeout', 'to'];
+  if (ownerOrAdminCmds.includes(commandName)) {
+    const isServerOwner = interaction.guild && interaction.user.id === interaction.guild.ownerId;
+    const isAdmin = interaction.member && interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+    if (!isServerOwner && !isAdmin) {
+      return interaction.reply({ content: '❌ You need **Administrator** permission to use that command.', ephemeral: true });
+    }
+  }
+  // purge  →  ManageMessages or Administrator
+  if (commandName === 'purge') {
+    const canPurge = interaction.member && (
+      interaction.member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+      interaction.member.permissions.has(PermissionFlagsBits.Administrator)
+    );
+    if (!canPurge) {
+      return interaction.reply({ content: '❌ You need **Manage Messages** permission to use that command.', ephemeral: true });
+    }
   }
 
   switch (commandName) {
