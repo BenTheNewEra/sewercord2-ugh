@@ -78,10 +78,14 @@ const JOBS = {
 };
 
 const SHOP = {
-  shield: { name: 'Rob Shield', price: 500 },
+  shield: { name: 'Shield', price: 500 },
   charm: { name: 'Lucky Charm', price: 300 },
   boost: { name: 'XP Boost', price: 1000 },
   nickname: { name: 'Nickname Change', price: 250 },
+  lottery: { name: 'Lottery Ticket', price: 150 },
+  mystery: { name: 'Mystery Box', price: 500 },
+  robkit: { name: 'Robbery Kit', price: 700 },
+  dailymult: { name: 'Double Daily', price: 350 },
 };
 
 const CMD_ARGS = {
@@ -227,13 +231,17 @@ function resolveStaleRobberies() {
     const victim = getOrCreateUser(r.victim_id, r.victim_name);
 
     if (success) {
-      const stealAmount = Math.min(r.steal_amount, victim.money);
+      let stealAmount = Math.min(r.steal_amount, victim.money);
+      if (robber.rob_bonus) {
+        stealAmount = Math.floor(stealAmount * 1.2);
+        updateUser(r.robber_id, { rob_bonus: 0 });
+      }
       if (stealAmount > 0) {
         updateUser(r.victim_id, { money: victim.money - stealAmount });
         updateUser(r.robber_id, { money: robber.money + stealAmount });
       }
       updateRobbery(r.id, { status: 'success', steal_amount: stealAmount });
-      postToChannel(r.channel_id, r.robber_name + ' successfully robbed ' + r.victim_name + ' and stole ' + fmtNum(stealAmount) + ' coins!');
+      postToChannel(r.channel_id, r.robber_name + ' successfully robbed ' + r.victim_name + ' and stole ' + fmtNum(stealAmount) + ' coins!' + (robber.rob_bonus ? ' (Robbery Kit: +20%)' : ''));
     } else {
       const penalty = Math.min(r.penalty_amount, robber.money);
       if (penalty > 0) updateUser(r.robber_id, { money: robber.money - penalty });
@@ -304,10 +312,14 @@ const slashCommands = [
   new SlashCommandBuilder().setName('buy').setDescription('Buy an item from the shop')
     .addStringOption(o => o.setName('item').setDescription('What to buy').setRequired(true)
       .addChoices(
-        { name: 'Rob Shield - 500 coins', value: 'shield' },
+        { name: 'Shield - 500 coins', value: 'shield' },
         { name: 'Lucky Charm - 300 coins', value: 'charm' },
         { name: 'XP Boost - 1000 coins', value: 'boost' },
         { name: 'Nickname - 250 coins', value: 'nickname' },
+        { name: 'Lottery Ticket - 150 coins', value: 'lottery' },
+        { name: 'Mystery Box - 500 coins', value: 'mystery' },
+        { name: 'Robbery Kit - 700 coins', value: 'robkit' },
+        { name: 'Double Daily - 350 coins', value: 'dailymult' },
       ))
     .addStringOption(o => o.setName('nickname').setDescription('New nickname (nickname item only)')),
   new SlashCommandBuilder().setName('roll').setDescription('Roll a dice').addIntegerOption(o => o.setName('sides').setDescription('Number of sides (default 6)').setMinValue(2).setMaxValue(1000)),
@@ -856,7 +868,7 @@ async function handleSlashCommand(interaction) {
     case 'resetuser': {
       const t = interaction.options.getUser('user');
       if (!t) return interaction.reply('Mention a user to reset!');
-      updateUser(t.id, { money: 0, xp: 0, level: 0, gamble_streak: 0, vc_minutes: 0, last_daily: '', last_work: '', last_rob: '', shield_until: '', lucky_charm: 0, xp_boost_until: '' });
+      updateUser(t.id, { money: 0, xp: 0, level: 0, gamble_streak: 0, vc_minutes: 0, last_daily: '', last_work: '', last_rob: '', shield_until: '', lucky_charm: 0, xp_boost_until: '', rob_bonus: 0, daily_boost: 0 });
       return interaction.reply('Reset <@' + t.id + ">'s profile completely.");
     }
     case 'setlog': {
@@ -980,13 +992,18 @@ function handleDaily(interaction, userId, username) {
     const h = (now.getTime() - new Date(user.last_daily).getTime()) / 3600000;
     if (h < 24) return interaction.reply('Come back in ' + Math.ceil((24 - h) * 60) + 'm!');
   }
-  const reward = 50 + Math.floor(Math.random() * 100);
+  let reward = 50 + Math.floor(Math.random() * 100);
+  const dblDaily = user.daily_boost === 1;
+  if (dblDaily) {
+    reward *= 2;
+    updateUser(userId, { daily_boost: 0 });
+  }
   const boosted = isXpBoosted(user);
   const baseXP = 20 + Math.floor(Math.random() * 30);
   const xpGain = boosted ? baseXP * 2 : baseXP;
   const { leveledUp, newLevel } = addXPAndMoney(userId, xpGain, reward);
   updateUser(userId, { last_daily: now.toISOString() });
-  let msg = '**Daily Reward!**\n\n+' + reward + ' coins | +' + xpGain + ' XP' + (boosted ? ' (boosted)' : '');
+  let msg = '**Daily Reward!**\n\n+' + reward + ' coins' + (dblDaily ? ' (Double Daily: 2x!)' : '') + ' | +' + xpGain + ' XP' + (boosted ? ' (boosted)' : '');
   if (leveledUp) msg += '\n\n**LEVEL UP!** Level ' + newLevel + '!';
   return interaction.reply(msg);
 }
@@ -1059,7 +1076,7 @@ async function handleRob(interaction, userId, username, options) {
   if (victim.money < 10) return interaction.reply(victim.username + ' is not worth robbing!');
 
   const vShield = victim.shield_until ? new Date(victim.shield_until) : null;
-  if (vShield && vShield > now) return interaction.reply(victim.username + ' has a Rob Shield!');
+  if (vShield && vShield > now) return interaction.reply(victim.username + ' has a Shield!');
 
   const active = getActiveRobberies(target.id);
   const beingRobbed = active.some(r => (now.getTime() - new Date(r.created_at).getTime()) / 1000 < 30);
@@ -1089,10 +1106,14 @@ function handleShop(interaction) {
     .setTitle('Server Shop')
     .setColor(0xF1C40F)
     .addFields(
-      { name: 'Rob Shield - 500 coins', value: 'Protects from robbery for 24 hours.' },
+      { name: 'Shield - 500 coins', value: 'Protects from robbery for 24 hours.' },
       { name: 'Lucky Charm - 300 coins', value: 'Next gamble is a guaranteed win!' },
       { name: 'XP Boost - 1000 coins', value: 'Double XP for 1 hour.' },
       { name: 'Nickname - 250 coins', value: 'Change your server nickname.' },
+      { name: 'Lottery Ticket - 150 coins', value: 'Instant 15% chance to win 1500 coins!' },
+      { name: 'Mystery Box - 500 coins', value: 'Random reward: coins, XP, items, or nothing!' },
+      { name: 'Robbery Kit - 700 coins', value: '+20% steal amount on your next robbery.' },
+      { name: 'Double Daily - 350 coins', value: 'Next /daily gives 2x coins!' },
     );
   return interaction.reply({ embeds: [embed] });
 }
@@ -1108,7 +1129,7 @@ async function handleBuy(interaction, userId, username, options) {
   if (item === 'shield') {
     const until = new Date(now.getTime() + 86400000);
     updateUser(userId, { money: user.money - shopItem.price, shield_until: until.toISOString() });
-    return interaction.reply('**Rob Shield activated!** 24h protection. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
+    return interaction.reply('**Shield activated!** 24h protection. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
   }
   if (item === 'charm') {
     if (user.lucky_charm) return interaction.reply('Already have a Lucky Charm!');
@@ -1130,6 +1151,41 @@ async function handleBuy(interaction, userId, username, options) {
       updateUser(userId, { money: user.money - shopItem.price });
       return interaction.reply('**Nickname changed to "' + newNick + '"!** Balance: ' + fmtNum(user.money - shopItem.price) + '.');
     } catch { return interaction.reply('Failed to change nickname.'); }
+  }
+  if (item === 'lottery') {
+    updateUser(userId, { money: user.money - shopItem.price });
+    const won = Math.random() < 0.15;
+    if (won) {
+      const prize = 1500;
+      updateUser(userId, { money: (user.money - shopItem.price) + prize });
+      return interaction.reply('🎫 **LOTTERY WIN!** You won ' + fmtNum(prize) + ' coins! Balance: ' + fmtNum((user.money - shopItem.price) + prize) + '.');
+    }
+    return interaction.reply('🎫 Lottery ticket... no win this time. Better luck next time! Balance: ' + fmtNum(user.money - shopItem.price) + '.');
+  }
+  if (item === 'mystery') {
+    updateUser(userId, { money: user.money - shopItem.price });
+    const rewards = [
+      { label: '500 coins', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 500 }); return 'You got **500 coins**!'; } },
+      { label: '1000 coins', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 1000 }); return 'You got **1000 coins**!'; } },
+      { label: '200 XP', action: () => { addXPAndMoney(userId, 200, 0); return 'You got **200 XP**!'; } },
+      { label: 'Shield 24h', action: () => { const until = new Date(Date.now() + 86400000); updateUser(userId, { shield_until: until.toISOString() }); return 'You got a **Shield (24h)**!'; } },
+      { label: 'Lucky Charm', action: () => { updateUser(userId, { lucky_charm: 1 }); return 'You got a **Lucky Charm**!'; } },
+      { label: 'nothing', action: () => { return 'You got... **nothing**. Tough luck!'; } },
+      { label: '150 coins back', action: () => { updateUser(userId, { money: (user.money - shopItem.price) + 150 }); return 'You got **150 coins back**.'; } },
+    ];
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    const result = reward.action();
+    return interaction.reply('🎁 **Mystery Box opened!** ' + result + ' Balance: ' + fmtNum(getOrCreateUser(userId, username).money) + '.');
+  }
+  if (item === 'robkit') {
+    if (user.rob_bonus) return interaction.reply('You already have a Robbery Kit active!');
+    updateUser(userId, { money: user.money - shopItem.price, rob_bonus: 1 });
+    return interaction.reply('**Robbery Kit activated!** +20% steal on your next robbery. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
+  }
+  if (item === 'dailymult') {
+    if (user.daily_boost) return interaction.reply('You already have a Double Daily active!');
+    updateUser(userId, { money: user.money - shopItem.price, daily_boost: 1 });
+    return interaction.reply('**Double Daily activated!** Next /daily gives 2x coins. Balance: ' + fmtNum(user.money - shopItem.price) + '.');
   }
 }
 

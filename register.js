@@ -33,10 +33,14 @@ const commands = [
   new SlashCommandBuilder().setName('buy').setDescription('Buy an item from the shop')
     .addStringOption(o => o.setName('item').setDescription('What to buy').setRequired(true)
       .addChoices(
-        { name: 'Rob Shield - 500 coins', value: 'shield' },
+        { name: 'Shield - 500 coins', value: 'shield' },
         { name: 'Lucky Charm - 300 coins', value: 'charm' },
         { name: 'XP Boost - 1000 coins', value: 'boost' },
         { name: 'Nickname - 250 coins', value: 'nickname' },
+        { name: 'Lottery Ticket - 150 coins', value: 'lottery' },
+        { name: 'Mystery Box - 500 coins', value: 'mystery' },
+        { name: 'Robbery Kit - 700 coins', value: 'robkit' },
+        { name: 'Double Daily - 350 coins', value: 'dailymult' },
       ))
     .addStringOption(o => o.setName('nickname').setDescription('New nickname (nickname item only)')),
   new SlashCommandBuilder().setName('roll').setDescription('Roll a dice').addIntegerOption(o => o.setName('sides').setDescription('Number of sides (default 6)').setMinValue(2).setMaxValue(1000)),

@@ -24,7 +24,9 @@ db.exec(`
     shield_until TEXT DEFAULT '',
     lucky_charm INTEGER DEFAULT 0,
     xp_boost_until TEXT DEFAULT '',
-    last_work_job TEXT DEFAULT ''
+    last_work_job TEXT DEFAULT '',
+    rob_bonus INTEGER DEFAULT 0,
+    daily_boost INTEGER DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS config (
@@ -68,6 +70,10 @@ db.exec(`
     UNIQUE(user1_id, user2_id)
   );
 `);
+
+// Migrate: add new columns for existing databases
+try { db.exec('ALTER TABLE users ADD COLUMN rob_bonus INTEGER DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE users ADD COLUMN daily_boost INTEGER DEFAULT 0'); } catch (e) {}
 
 function getOrCreateUser(discordUserId, username) {
   let user = db.prepare('SELECT * FROM users WHERE discord_user_id = ?').get(discordUserId);
