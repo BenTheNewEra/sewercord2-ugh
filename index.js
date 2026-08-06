@@ -1024,19 +1024,25 @@ async function handleSlashCommand(interaction) {
 
 function handleHelp(interaction) {
   const embed = new EmbedBuilder()
-    .setTitle('Bot Commands')
+    .setTitle('\u{1F4D6}  Command Reference')
     .setColor(0x5865F2)
-    .setDescription('Slash: /ping, /work, etc.\nDot: ' + PREFIX + 'ping, ' + PREFIX + 'work barista, etc.\nBoth work the same way!')
+    .setDescription(
+      '> Use `/command` or `' + PREFIX + 'command` \u2014 both work the same way.\n' +
+      '> Commands marked **\u{1F451}** are owner-only.'
+    )
     .addFields(
-      { name: '🎮 Games', value: '/bj /slots /fish /heist /trivia' },
-      { name: '💰 Economy', value: '/daily /work /gamble /pay /rob /shop /buy /bl /rank /lb' },
-      { name: '📈 Stocks', value: '/stocks market /stocks buy /stocks sell /stocks portfolio' },
-      { name: '🐾 Social', value: '/achievements /loveletter /pet' },
-      { name: '🎲 Fun', value: '/roll /coinflip /8ball /choose /cookie /pray /curse /bell /define /rate /poll /grape /beat /goon /marry /divorce' },
-      { name: '🔧 Utility', value: '/ping /userinfo /mailbox /help' },
-      { name: '🔨 Moderation', value: '/kick /ban /purge /timeout (.to) /setlog /slowmode /lock /unlock' },
-      { name: '👑 Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval /serverstats' },
-    );
+      { name: '\u{1F3AE}  Games',      value: '`/bj` `/slots` `/fish` `/heist` `/trivia`', inline: true },
+      { name: '\u{1F4B0}  Economy',    value: '`/daily` `/work` `/gamble` `/pay` `/rob`\n`/shop` `/buy` `/bl` `/rank` `/lb`', inline: true },
+      { name: '\u{1F4C8}  Stocks',     value: '`/stocks market`\n`/stocks buy` `/stocks sell`\n`/stocks portfolio`', inline: true },
+      { name: '\u{1F43E}  Social',     value: '`/achievements` `/pet`\n`/loveletter`', inline: true },
+      { name: '\u{1F3B2}  Fun',        value: '`/roll` `/coinflip` `/8ball` `/choose`\n`/cookie` `/pray` `/curse` `/bell`\n`/rate` `/poll` `/define` `/grape`\n`/beat` `/goon` `/marry` `/divorce`', inline: true },
+      { name: '\u{1F527}  Utility',    value: '`/ping` `/userinfo` `/mailbox` `/help`', inline: true },
+      { name: '\u{1F528}  Moderation', value: '`/kick` `/ban` `/purge` `/timeout`\n`/slowmode` `/lock` `/unlock` `/setlog`', inline: true },
+      { name: '\u{1F451}  Owner',      value: '`/givecoins` `/takecoins`\n`/setxp` `/addxp` `/setlevel` `/takelvl`\n`/resetuser` `/setbump` `/setbumpinterval`\n`/serverstats`', inline: true },
+      { name: '\u200b', value: '\u200b', inline: true },
+    )
+    .setFooter({ text: 'Tip: most commands also work with the . prefix  \u2022  Use /help anytime' })
+    .setTimestamp();
   return interaction.reply({ embeds: [embed] });
 }
 
