@@ -1319,7 +1319,16 @@ function handleShop(interaction) {
 async function handleBuy(interaction, userId, username, options) {
   const item = options.getString('item');
   const shopItem = SHOP[item];
-  if (!shopItem) return interaction.reply('Unknown item! Use /shop to see items.');
+  if (!shopItem) {
+    // Check if they tried to buy a stock symbol/name
+    const STOCK_SYMBOLS = ['SEWER','COIN','BLAZE','GOONING','SAI','INFINITY'];
+    const itemUpper = (item || '').toUpperCase().replace(/\s+/g, '');
+    const looksLikeStock = STOCK_SYMBOLS.some(s => itemUpper.includes(s));
+    if (looksLikeStock) {
+      return interaction.reply('That\'s a stock, not a shop item! Use `/stocks buy` to buy stocks — e.g. `/stocks buy GOONING 1`');
+    }
+    return interaction.reply('Unknown item! Use `/shop` to see available shop items.');
+  }
   const user = getOrCreateUser(userId, username);
   if (user.money < shopItem.price) return interaction.reply('Need ' + shopItem.price + ' coins, you have ' + user.money + '!');
   const now = new Date();
