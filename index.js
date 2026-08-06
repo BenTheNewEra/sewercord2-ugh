@@ -1048,6 +1048,7 @@ function handleHelp(interaction) {
 
 function handleBalance(interaction, userId, username) {
   const user = getOrCreateUser(userId, username);
+  const displayName = interaction.member ? interaction.member.displayName : username;
   const level = user.level || levelFromXP(user.xp);
   const xpToNext = xpForLevel(level + 1) - user.xp;
   const segments = 15;
@@ -1086,7 +1087,7 @@ function handleBalance(interaction, userId, username) {
   const color = colors[Math.min(level, colors.length - 1)];
 
   const embed = new EmbedBuilder()
-    .setTitle('\ud83d\udcbc ' + username + "'s Profile")
+    .setTitle('\ud83d\udcbc ' + displayName + (displayName !== username ? ' (' + username + ')' : '') + "'s Profile")
     .setColor(color)
     .addFields(
       { name: '\ud83d\udcb0 Coins', value: '```\n' + fmtNum(user.money) + '\n```', inline: true },
@@ -1097,7 +1098,7 @@ function handleBalance(interaction, userId, username) {
       { name: '\ud83c\udfb0 Gamble Streak', value: streakStr, inline: true },
       { name: '\u2728 Active Effects', value: effectsStr, inline: false },
     )
-    .setFooter({ text: username + ' \u2022 ' + (interaction.guild ? interaction.guild.name : 'Server') });
+    .setFooter({ text: displayName + (displayName !== username ? ' (' + username + ')' : '') + ' \u2022 ' + (interaction.guild ? interaction.guild.name : 'Server') });
   return interaction.reply({ embeds: [embed] });
 }
 
