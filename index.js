@@ -140,7 +140,7 @@ const CMD_ARGS = {
   setbump: ['channel:channel'],
   setbumpinterval: ['hours:int?', 'minutes:int?'],
   marry: ['user:user'],
-  blackjack: ['amount:int'],
+  bj: ['amount:int'],
   slots: ['amount:int'],
   slowmode: ['seconds:int'],
 };
@@ -374,7 +374,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('marry').setDescription('Propose to someone').addUserOption(o => o.setName('user').setDescription('Who to propose to').setRequired(true)),
   new SlashCommandBuilder().setName('divorce').setDescription('Divorce your spouse'),
   // ── New Features ──
-  new SlashCommandBuilder().setName('blackjack').setDescription('Play blackjack against the dealer')
+  new SlashCommandBuilder().setName('bj').setDescription('Play blackjack against the dealer')
     .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(10)),
   new SlashCommandBuilder().setName('slots').setDescription('Spin the slot machine')
     .addIntegerOption(o => o.setName('amount').setDescription('Coins to bet').setRequired(true).setMinValue(10)),
@@ -535,7 +535,7 @@ client.on('messageCreate', async (message) => {
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
-      'blackjack', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock'
+      'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -997,7 +997,7 @@ async function handleSlashCommand(interaction) {
     }
 
     // ── New Feature Commands ──
-    case 'blackjack': return handleBlackjack(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
+    case 'bj': return handleBlackjack(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'slots': return handleSlots(interaction, getOrCreateUser, updateUser);
     case 'fish': return handleFish(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'heist': return handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
@@ -1031,7 +1031,7 @@ function handleHelp(interaction) {
       { name: 'Utility', value: '/ping /userinfo /mailbox /help' },
       { name: 'Moderation', value: '/kick /ban /purge /timeout (.to) /setlog /slowmode /lock /unlock' },
       { name: 'Owner', value: '/givecoins /takecoins /setxp /addxp /setlevel /takelvl /resetuser /setbump /setbumpinterval' },
-      { name: 'Games', value: '/blackjack /slots /fish /heist /trivia' },
+      { name: 'Games', value: '/bj /slots /fish /heist /trivia' },
       { name: 'Stocks', value: '/stocks market | buy | sell | portfolio' },
       { name: 'Social', value: '/achievements /loveletter /pet /serverstats' },
     );
