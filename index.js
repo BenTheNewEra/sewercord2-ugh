@@ -1475,7 +1475,7 @@ async function handleLeaderboard(interaction) {
 
   function buildRow(active) {
     return new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('lb:coins').setLabel('\uD83D\uDCB0 Coins') .setStyle(active === 'coins' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('lb:coins').setLabel('\uD83D\uDCB0 Richest').setStyle(active === 'coins' ? ButtonStyle.Primary : ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('lb:level').setLabel('\uD83D\uDE80 Level') .setStyle(active === 'level' ? ButtonStyle.Primary : ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('lb:vc')   .setLabel('\uD83C\uDFA4 VC Time').setStyle(active === 'vc'    ? ButtonStyle.Primary : ButtonStyle.Secondary),
     );
