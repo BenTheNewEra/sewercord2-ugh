@@ -128,7 +128,7 @@ const CMD_ARGS = {
   kick: ['user:user', 'reason:rest?'],
   ban: ['user:user', 'reason:rest?'],
   purge: ['amount:int'],
-  to: ['user:user', 'duration:int', 'reason:rest?'],
+  to: ['user:user', 'duration:int?', 'reason:rest?'],
   setlog: ['channel:channel'],
   givecoins: ['user:user', 'amount:int'],
   takecoins: ['user:user', 'amount:int'],
@@ -372,7 +372,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('kick').setDescription('Kick a user').addUserOption(o => o.setName('user').setDescription('Who to kick').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('ban').setDescription('Ban a user').addUserOption(o => o.setName('user').setDescription('Who to ban').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('purge').setDescription('Delete messages').addIntegerOption(o => o.setName('amount').setDescription('How many (1-100)').setRequired(true).setMinValue(1).setMaxValue(100)),
-  new SlashCommandBuilder().setName('timeout').setDescription('Timeout a user').addUserOption(o => o.setName('user').setDescription('Who to timeout').setRequired(true)).addIntegerOption(o => o.setName('duration').setDescription('Duration in seconds').setRequired(true).setMinValue(1).setMaxValue(2419200)).addStringOption(o => o.setName('reason').setDescription('Reason')),
+  new SlashCommandBuilder().setName('timeout').setDescription('Timeout a user').addUserOption(o => o.setName('user').setDescription('Who to timeout').setRequired(true)).addIntegerOption(o => o.setName('duration').setDescription('Duration in seconds (default: 5 min)').setMinValue(1).setMaxValue(2419200)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('setlog').setDescription('Set log channel').addChannelOption(o => o.setName('channel').setDescription('Log channel').setRequired(true)),
   new SlashCommandBuilder().setName('givecoins').setDescription('Owner: Give coins').addUserOption(o => o.setName('user').setDescription('User to give coins to').setRequired(true)).addIntegerOption(o => o.setName('amount').setDescription('Amount of coins').setRequired(true).setMinValue(1)),
   new SlashCommandBuilder().setName('takecoins').setDescription('Owner: Take coins').addUserOption(o => o.setName('user').setDescription('User to take coins from').setRequired(true)).addIntegerOption(o => o.setName('amount').setDescription('Amount of coins').setRequired(true).setMinValue(1)),
@@ -912,16 +912,13 @@ async function handleSlashCommand(interaction) {
 
     case 'timeout': case 'to': {
       const target = interaction.options.getUser('user');
-      const duration = interaction.options.getInteger('duration');
-      const reason = interaction.options.getString('reason') || 'No reason provided';
-      if (!target) return interaction.reply('Please mention a user to timeout.');
-      if (!duration || duration < 1) return interaction.reply('Duration must be at least 1 second.');
+      const duration = interaction.options.getInteger('duration') || 300; // default 5 minutes
+      if (!target) return interaction.reply({ content: 'Please mention a user to timeout.', ephemeral: true });
       try {
         const member = await interaction.guild.members.fetch(target.id);
-        await member.timeout(duration * 1000, reason);
-        const timeStr = duration >= 60 ? Math.floor(duration / 60) + ' min' : duration + ' sec';
-        return interaction.reply('Timed out <@' + target.id + '> for ' + timeStr + '. Reason: ' + reason);
-      } catch { return interaction.reply('Failed to timeout (need Moderate Members permission).'); }
+        await member.timeout(duration * 1000);
+        return interaction.reply({ content: '✅', ephemeral: true });
+      } catch { return interaction.reply({ content: 'Failed to timeout (need Moderate Members permission).', ephemeral: true }); }
     }
     case 'givecoins': {
       const t = interaction.options.getUser('user'); const a = interaction.options.getInteger('amount');
