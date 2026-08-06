@@ -166,10 +166,12 @@ this.commandName = commandName;
 
   async reply(payload) {
     this._replied = true;
-    // Dot commands can't do ephemeral - simulate it by deleting after a few seconds
+    // Dot commands can't do ephemeral — strip the flag and auto-delete instead
     const wantsEphemeral = typeof payload === 'object' && payload.ephemeral;
-    if (wantsEphemeral && payload.content) {
-      const sent = await this._message.reply({ content: payload.content });
+    if (wantsEphemeral) {
+      const cleaned = { ...payload };
+      delete cleaned.ephemeral;
+      const sent = await this._message.reply(cleaned);
       setTimeout(() => { try { sent.delete(); } catch {} }, 5000);
       return sent;
     }
@@ -573,7 +575,8 @@ client.on('messageCreate', async (message) => {
       'kick', 'ban', 'purge', 'setlog', 'to',
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
-      'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock'
+      'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock',
+      'pet', 'stocks', 'loveletter'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -1161,6 +1164,14 @@ function handleDaily(interaction, userId, username) {
   const xpGain = boosted ? baseXP * 2 : baseXP;
   const { leveledUp, newLevel } = addXPAndMoney(userId, xpGain, reward);
   updateUser(userId, { last_daily: now.toISOString() });
+  const dailyTriggers = ['first_daily'];
+  const updatedUser = getOrCreateUser(userId, username);
+  if (updatedUser.money >= 1000) dailyTriggers.push('rich_1k');
+  if (updatedUser.money >= 10000) dailyTriggers.push('rich_10k');
+  if (newLevel >= 5) dailyTriggers.push('level_5');
+  if (newLevel >= 10) dailyTriggers.push('level_10');
+  if (newLevel >= 25) dailyTriggers.push('level_25');
+  checkAndAwardAchievements(db, userId, username, dailyTriggers);
   const newBalance = user.money + reward;
 
   const fields = [
@@ -1198,6 +1209,7 @@ function handleWork(interaction, userId, username, options) {
   const xpGain = boosted ? baseXP * 2 : baseXP;
   const { leveledUp, newLevel } = addXPAndMoney(userId, xpGain, earned);
   updateUser(userId, { last_work: now.toISOString(), last_work_job: jobKey });
+  { const wu = getOrCreateUser(userId, username); const wt = []; if (wu.money >= 1000) wt.push('rich_1k'); if (wu.money >= 10000) wt.push('rich_10k'); if (newLevel >= 5) wt.push('level_5'); if (newLevel >= 10) wt.push('level_10'); if (newLevel >= 25) wt.push('level_25'); if (wt.length) checkAndAwardAchievements(db, userId, username, wt); }
   const quip = job.quips[Math.floor(Math.random() * job.quips.length)];
   let msg = 'You worked as **' + job.name + '**\n\n*' + quip + '*\n\n+' + earned + ' coins | +' + xpGain + ' XP' + (boosted ? ' (boosted)' : '');
   if (leveledUp) msg += '\n\n**LEVEL UP!** Level ' + newLevel + '!';
@@ -1217,7 +1229,11 @@ function handleGamble(interaction, userId, username, options) {
   else { won = Math.random() < 0.5; }
   const change = won ? amount : -amount;
   addXPAndMoney(userId, 5, change);
+  const newStreak = won ? (user.gamble_streak || 0) + 1 : 0;
+  updateUser(userId, { gamble_streak: newStreak });
+  if (newStreak >= 5) checkAndAwardAchievements(db, userId, username, ['gamble_5']);
   let msg = won ? '**You won!** +' + amount + ' coins' + (hasCharm ? ' (lucky charm!)' : '') : '**You lost!** -' + amount + ' coins';
+  if (won && newStreak >= 2) msg += ' 🔥 ' + newStreak + ' win streak!';
   msg += '\n\nBalance: ' + fmtNum(user.money + change) + ' coins';
   return interaction.reply(msg);
 }
@@ -1267,6 +1283,7 @@ async function handleRob(interaction, userId, username, options) {
     stealAmount: steal, penaltyAmount: penalty, stealPercent: pct, channelId: interaction.channelId, createdAt: now.toISOString()
   });
   updateUser(userId, { last_rob: now.toISOString() });
+  checkAndAwardAchievements(db, userId, username, ['first_rob']);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('rob_stop:' + robberyId).setLabel('STOP').setStyle(ButtonStyle.Danger)

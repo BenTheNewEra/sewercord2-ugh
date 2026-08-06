@@ -770,8 +770,8 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     const now = new Date();
     if (pet.last_fed) {
       const h = (now.getTime() - new Date(pet.last_fed).getTime()) / 3600000;
-      if (h < 4) {
-        const mins = Math.ceil((4 - h) * 60);
+      if (h < 1) {
+        const mins = Math.ceil((1 - h) * 60);
         return interaction.reply({ content: `${pet.pet_name} is full! Feed again in **${mins}m**.`, ephemeral: true });
       }
     }
