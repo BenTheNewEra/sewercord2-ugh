@@ -733,6 +733,7 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     const existing = db.prepare('SELECT * FROM pets WHERE user_id = ?').get(userId);
     if (existing) return interaction.reply({ content: `You already have **${existing.pet_name}** (${existing.pet_type})! Use /pet status to check on them.`, ephemeral: true });
     const petName = interaction.options.getString('name');
+    if (!petName || !petName.trim()) return interaction.reply({ content: 'Please provide a name for your pet! e.g. `/pet adopt Fluffy`', ephemeral: true });
     const petType = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
     db.prepare('INSERT INTO pets (user_id, pet_name, pet_type, level, xp, last_fed, happiness) VALUES (?, ?, ?, 1, 0, ?, 100)')
       .run(userId, petName, petType, new Date().toISOString());
@@ -774,23 +775,31 @@ function handlePet(interaction, db, getOrCreateUser, updateUser, checkAndAward) 
     updateUser(userId, { money: user.money - 10 });
 
     const xpGain = rnd(10, 25);
-    const newXP = pet.xp + xpGain;
-    const newLevel = newXP >= pet.level * 100 ? pet.level + 1 : pet.level;
+    const rawXP = pet.xp + xpGain;
+    const threshold = pet.level * 100;
+    const leveledUp = rawXP >= threshold;
+    const newLevel = leveledUp ? pet.level + 1 : pet.level;
+    const newXP = leveledUp ? rawXP - threshold : rawXP;
     const newHappiness = Math.min(100, pet.happiness + 15);
     db.prepare('UPDATE pets SET xp = ?, level = ?, last_fed = ?, happiness = ? WHERE user_id = ?')
-      .run(newXP >= pet.level * 100 ? 0 : newXP, newLevel, now.toISOString(), newHappiness, userId);
+      .run(newXP, newLevel, now.toISOString(), newHappiness, userId);
 
-    let msg = `🍖 You fed **${pet.pet_name}**! +${xpGain} XP, happiness: ${newHappiness}%.`;
-    if (newLevel > pet.level) msg += `\n\n🎉 **${pet.pet_name} leveled up to Level ${newLevel}!**`;
+    let msg = `🍖 You fed **${pet.pet_name}**! +${xpGain} XP (${newXP}/${newLevel * 100}), happiness: ${newHappiness}%.`;
+    if (leveledUp) msg += `\n\n🎉 **${pet.pet_name} leveled up to Level ${newLevel}!**`;
     return interaction.reply({ content: msg });
+  }
+
+  if (!sub || !['adopt','status','feed','rename'].includes(sub)) {
+    return interaction.reply({ content: 'Unknown subcommand. Use: `/pet adopt`, `/pet status`, `/pet feed`, `/pet rename`', ephemeral: true });
   }
 
   if (sub === 'rename') {
     const pet = db.prepare('SELECT * FROM pets WHERE user_id = ?').get(userId);
     if (!pet) return interaction.reply({ content: 'You have no pet!', ephemeral: true });
     const newName = interaction.options.getString('name');
-    db.prepare('UPDATE pets SET pet_name = ? WHERE user_id = ?').run(newName, userId);
-    return interaction.reply({ content: `✅ Your pet has been renamed to **${newName}**!` });
+    if (!newName || !newName.trim()) return interaction.reply({ content: 'Please provide a new name! e.g. `/pet rename Buddy`', ephemeral: true });
+    db.prepare('UPDATE pets SET pet_name = ? WHERE user_id = ?').run(newName.trim(), userId);
+    return interaction.reply({ content: `✅ Your pet has been renamed to **${newName.trim()}**!` });
   }
 }
 

@@ -143,6 +143,8 @@ const CMD_ARGS = {
   bj: ['amount:int'],
   slots: ['amount:int'],
   slowmode: ['seconds:int'],
+  pet: ['name:string?'],
+  loveletter: ['user:user?', 'message:rest?'],
 };
 
 class MsgAdapter {
@@ -196,8 +198,11 @@ function createOptionsAdapter(message, commandName, rawArgs) {
     } catch {}
   }
 
+  const SUBCOMMAND_CMDS = ['pet', 'stocks', 'loveletter'];
+  const isSubCmd = SUBCOMMAND_CMDS.includes(commandName);
   const cleanArgs = rawArgs.filter(a => !/^<(@!?|#)(\d+)>$/.test(a));
-  let aIdx = 0;
+  // For subcommand-style commands, skip first arg (the subcommand name) when parsing options
+  let aIdx = isSubCmd ? 1 : 0;
   const parsed = {};
   const specs = CMD_ARGS[commandName] || [];
 
@@ -231,11 +236,16 @@ function createOptionsAdapter(message, commandName, rawArgs) {
     }
   }
 
+  // For subcommand-based commands (.pet adopt, .stocks market, etc.)
+  // First cleanArg is the subcommand, rest are args
+  const subcommand = cleanArgs[0] ? cleanArgs[0].toLowerCase() : null;
+
   return {
     getString: (n) => parsed[n] && parsed[n].type === 'string' ? parsed[n].value : null,
     getInteger: (n) => parsed[n] && parsed[n].type === 'int' ? parsed[n].value : null,
     getUser: (n) => parsed[n] && parsed[n].type === 'user' ? parsed[n].value : null,
     getChannel: (n) => parsed[n] && parsed[n].type === 'channel' ? parsed[n].value : null,
+    getSubcommand: () => subcommand,
   };
 }
 
