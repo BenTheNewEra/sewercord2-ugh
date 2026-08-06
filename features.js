@@ -83,19 +83,23 @@ function initFeatureTables(db) {
     );
   `);
 
-  // Seed stocks if empty
-  const existing = db.prepare('SELECT COUNT(*) as c FROM stocks').get();
-  if (existing.c === 0) {
-    const seeds = [
-      ['SEWER', 'Sewer Corp', 100],
-      ['COIN', 'CoinMint Inc', 250],
-      ['GOON', 'Goon Industries', 75],
-      ['GRAPE', 'Grape Holdings', 50],
-      ['BLAZE', 'Blaze Capital', 180],
-    ];
-    const ins = db.prepare('INSERT INTO stocks (symbol, name, price, last_updated) VALUES (?, ?, ?, ?)');
-    for (const [sym, name, price] of seeds) {
-      ins.run(sym, name, price, new Date().toISOString());
+  // Remove old stocks that no longer exist
+  db.prepare("DELETE FROM stocks WHERE symbol IN ('GOON', 'GRAPE')").run();
+
+  // Seed/upsert current stock list
+  const desiredStocks = [
+    ['SEWER',    'Sewer Corp',       100],
+    ['COIN',     'CoinMint Inc',     250],
+    ['BLAZE',    'Blaze Capital',    180],
+    ['GOONING',  'Gooning Stocks',   1000],
+    ['SAI',      'Sai',              100000000],
+    ['INFINITY', 'Infinity Stocks',  100000000],
+  ];
+  const upsert = db.prepare('INSERT INTO stocks (symbol, name, price, last_updated) VALUES (?, ?, ?, ?) ON CONFLICT(symbol) DO UPDATE SET name = excluded.name');
+  for (const [sym, name, price] of desiredStocks) {
+    const exists = db.prepare('SELECT symbol FROM stocks WHERE symbol = ?').get(sym);
+    if (!exists) {
+      upsert.run(sym, name, price, new Date().toISOString());
     }
   }
 }
