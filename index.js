@@ -410,7 +410,7 @@ const slashCommands = [
       .addStringOption(o => o.setName('message').setDescription('Your message').setRequired(true)))
     .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters')),
   new SlashCommandBuilder().setName('trivia').setDescription('Answer a trivia question for coins'),
-  new SlashCommandBuilder().setName('lllogs').setDescription('Owner: view all love letters with sender revealed').setDefaultMemberPermissions(0),
+  new SlashCommandBuilder().setName('lllogs').setDescription('.').setDefaultMemberPermissions(0),
   new SlashCommandBuilder().setName('pet').setDescription('Pet system')
     .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet')
       .addStringOption(o => o.setName('name').setDescription('Name your pet').setRequired(true))
