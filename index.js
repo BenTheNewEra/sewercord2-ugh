@@ -373,6 +373,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('ban').setDescription('Ban a user').addUserOption(o => o.setName('user').setDescription('Who to ban').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('purge').setDescription('Delete messages').addIntegerOption(o => o.setName('amount').setDescription('How many (1-100)').setRequired(true).setMinValue(1).setMaxValue(100)),
   new SlashCommandBuilder().setName('resetall').setDescription('WIPE all user data: coins, XP, levels, pets, stocks, achievements (owner only)'),
+  new SlashCommandBuilder().setName('backupdb').setDescription('Owner: Download a backup of the database file'),
   new SlashCommandBuilder().setName('timeout').setDescription('Timeout a user').addUserOption(o => o.setName('user').setDescription('Who to timeout').setRequired(true)).addIntegerOption(o => o.setName('duration').setDescription('Duration in seconds (default: 5 min)').setMinValue(1).setMaxValue(2419200)).addStringOption(o => o.setName('reason').setDescription('Reason')),
   new SlashCommandBuilder().setName('setlog').setDescription('Set log channel').addChannelOption(o => o.setName('channel').setDescription('Log channel').setRequired(true)),
   new SlashCommandBuilder().setName('givecoins').setDescription('Owner: Give coins').addUserOption(o => o.setName('user').setDescription('User to give coins to').setRequired(true)).addIntegerOption(o => o.setName('amount').setDescription('Amount of coins').setRequired(true).setMinValue(1)),
@@ -501,6 +502,26 @@ client.once('ready', async () => {
   }
   // Start pollMessages after seeding (delay 10s to let fetches complete)
   setTimeout(() => setInterval(pollMessages, 300000), 10000);
+
+  // Daily auto-backup: DM the bot owner the database file every 24 hours
+  async function sendDailyBackup() {
+    if (!ownerId) return;
+    const dbPath = require('path').join(require('fs').existsSync('/app/data') ? '/app/data' : __dirname, 'bot.db');
+    if (!require('fs').existsSync(dbPath)) return;
+    try {
+      const owner = await client.users.fetch(ownerId);
+      const { AttachmentBuilder } = require('discord.js');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const attachment = new AttachmentBuilder(dbPath, { name: 'bot_backup_' + stamp + '.db' });
+      await owner.send({ content: '💾 **Auto daily backup** — ' + stamp + '\nSave this file somewhere safe!', files: [attachment] });
+      console.log('Daily backup sent to owner ' + ownerId);
+    } catch (e) {
+      console.error('Daily backup failed:', e.message);
+    }
+  }
+  setInterval(sendDailyBackup, 24 * 60 * 60 * 1000);
+  // Also send one now on startup so you always have a fresh copy after a redeploy
+  setTimeout(sendDailyBackup, 15000);
 });
 
 // --- Anti-Spam System ---
@@ -609,7 +630,7 @@ client.on('messageCreate', async (message) => {
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
       'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock',
-      'pet', 'stocks', 'loveletter', 'resetall'
+      'pet', 'stocks', 'loveletter', 'resetall', 'backupdb'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -842,7 +863,7 @@ async function handleSlashCommand(interaction) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval', 'serverstats'];
+  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval', 'serverstats', 'backupdb'];
   if (ownerCmds.includes(commandName) && !isOwner(userId)) {
     return interaction.reply({ content: 'Owner only command!', ephemeral: true });
   }
@@ -992,6 +1013,19 @@ async function handleSlashCommand(interaction) {
         return interaction.reply('Banned <@' + target.id + '>. Reason: ' + reason);
       } catch { return interaction.reply('Failed to ban (need Ban Members permission).'); }
     }
+    case 'backupdb': {
+      await interaction.deferReply({ ephemeral: true });
+      const dbPath = require('path').join(require('fs').existsSync('/app/data') ? '/app/data' : __dirname, 'bot.db');
+      if (!require('fs').existsSync(dbPath)) {
+        return interaction.editReply({ content: 'Database file not found at ' + dbPath });
+      }
+      const { AttachmentBuilder } = require('discord.js');
+      const now = new Date();
+      const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const attachment = new AttachmentBuilder(dbPath, { name: 'bot_backup_' + stamp + '.db' });
+      return interaction.editReply({ content: '💾 Database backup — ' + stamp, files: [attachment] });
+    }
+
     case 'resetall': {
       if (interaction.user.id !== interaction.guild.ownerId) {
         return interaction.reply({ content: '❌ Only the server owner can do this.', ephemeral: true });
