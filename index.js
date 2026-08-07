@@ -408,7 +408,8 @@ const slashCommands = [
     .addSubcommand(s => s.setName('send').setDescription('Send an anonymous love letter')
       .addUserOption(o => o.setName('user').setDescription('Who to send it to').setRequired(true))
       .addStringOption(o => o.setName('message').setDescription('Your message').setRequired(true)))
-    .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters')),
+    .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters'))
+    .addSubcommand(s => s.setName('logs').setDescription('Owner only: view all letters with sender revealed')),
   new SlashCommandBuilder().setName('trivia').setDescription('Answer a trivia question for coins'),
   new SlashCommandBuilder().setName('pet').setDescription('Pet system')
     .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet')
