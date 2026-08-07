@@ -619,7 +619,7 @@ function handleStocks(interaction, db, getOrCreateUser, updateUser) {
 // ════════════════════════════════════════════════════════════
 //  LOVE LETTER
 // ════════════════════════════════════════════════════════════
-function handleLoveLetter(interaction, db, client) {
+function handleLoveLetter(interaction, db, client, ownerIds = []) {
   const sub = interaction.options.getSubcommand();
   const userId = interaction.user.id;
 
@@ -632,10 +632,19 @@ function handleLoveLetter(interaction, db, client) {
     db.prepare('INSERT INTO love_letters (sender_id, sender_name, target_id, message, sent_at) VALUES (?, ?, ?, ?, ?)')
       .run(userId, interaction.user.username, target.id, message, new Date().toISOString());
 
-    // Try to DM the target
+    // DM the target (anonymous)
     client.users.fetch(target.id).then(u => {
       u.send(`💌 **You received an anonymous love letter!**\n\n*"${message}"*`).catch(() => {});
     }).catch(() => {});
+
+    // DM every owner with the sender's identity (private log)
+    const senderTag = interaction.user.username + ' (<@' + userId + '>)';
+    const targetTag = target.username + ' (<@' + target.id + '>)';
+    for (const oid of ownerIds) {
+      client.users.fetch(oid).then(owner => {
+        owner.send(`🔍 **Love letter log (owner-only)**\n**From:** ${senderTag}\n**To:** ${targetTag}\n**Message:** *"${message}"*`).catch(() => {});
+      }).catch(() => {});
+    }
 
     return interaction.reply({ content: `💌 Your anonymous love letter has been delivered to **${target.username}**!`, ephemeral: true });
   }

@@ -1173,7 +1173,7 @@ async function handleSlashCommand(interaction) {
     case 'heist': return handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'stocks': return handleStocks(interaction, db, getOrCreateUser, updateUser);
     case 'achievements': return handleAchievements(interaction, db);
-    case 'loveletter': return handleLoveLetter(interaction, db, client);
+    case 'loveletter': return handleLoveLetter(interaction, db, client, allOwnerIds);
     case 'trivia': return handleTrivia(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'pet': return handlePet(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'serverstats': return handleServerStats(interaction, client);
