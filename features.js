@@ -657,25 +657,6 @@ function handleLoveLetter(interaction, db, client, ownerIds = []) {
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
-  if (sub === 'logs') {
-    // Owner-only: show all love letters with sender revealed
-    if (!ownerIds.includes(userId)) {
-      return interaction.reply({ content: '❌ Owner only.', ephemeral: true });
-    }
-    const all = db.prepare('SELECT * FROM love_letters ORDER BY sent_at DESC LIMIT 25').all();
-    if (!all.length) return interaction.reply({ content: '📭 No love letters have been sent yet.', ephemeral: true });
-    const lines = all.map((l, i) => {
-      const date = l.sent_at ? l.sent_at.slice(0, 10) : '?';
-      return `**${i + 1}.** 📤 <@${l.sender_id}> (${l.sender_name}) → <@${l.target_id}>
-┗ *"${l.message}"* — ${date}`;
-    }).join('\n\n');
-    const embed = new EmbedBuilder()
-      .setTitle('🔍 Love Letter Logs (Owner View)')
-      .setColor(0xFF0000)
-      .setDescription(lines)
-      .setFooter({ text: 'Showing last 25 letters' });
-    return interaction.reply({ embeds: [embed], ephemeral: true });
-  }
 }
 
 // ════════════════════════════════════════════════════════════

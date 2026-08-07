@@ -408,9 +408,9 @@ const slashCommands = [
     .addSubcommand(s => s.setName('send').setDescription('Send an anonymous love letter')
       .addUserOption(o => o.setName('user').setDescription('Who to send it to').setRequired(true))
       .addStringOption(o => o.setName('message').setDescription('Your message').setRequired(true)))
-    .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters'))
-    .addSubcommand(s => s.setName('logs').setDescription('Owner only: view all letters with sender revealed')),
+    .addSubcommand(s => s.setName('inbox').setDescription('Read your love letters')),
   new SlashCommandBuilder().setName('trivia').setDescription('Answer a trivia question for coins'),
+  new SlashCommandBuilder().setName('lllogs').setDescription('Owner: view all love letters with sender revealed').setDefaultMemberPermissions(0),
   new SlashCommandBuilder().setName('pet').setDescription('Pet system')
     .addSubcommand(s => s.setName('adopt').setDescription('Adopt a pet')
       .addStringOption(o => o.setName('name').setDescription('Name your pet').setRequired(true))
@@ -631,7 +631,7 @@ client.on('messageCreate', async (message) => {
       'givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser',
       'setbump', 'setbumpinterval', 'marry', 'divorce', 'timeout',
       'bj', 'slots', 'fish', 'heist', 'achievements', 'trivia', 'serverstats', 'slowmode', 'lock', 'unlock',
-      'pet', 'stocks', 'loveletter', 'resetall', 'backupdb'
+      'pet', 'stocks', 'loveletter', 'resetall', 'backupdb', 'lllogs'
     ];
 
     if (!dotCommands.includes(commandName)) return;
@@ -864,7 +864,7 @@ async function handleSlashCommand(interaction) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval', 'serverstats', 'backupdb'];
+  const ownerCmds = ['givecoins', 'takecoins', 'setxp', 'addxp', 'setlevel', 'takelvl', 'resetuser', 'setlog', 'setbump', 'setbumpinterval', 'serverstats', 'backupdb', 'lllogs'];
   if (ownerCmds.includes(commandName) && !isOwner(userId)) {
     return interaction.reply({ content: 'Owner only command!', ephemeral: true });
   }
@@ -1174,6 +1174,21 @@ async function handleSlashCommand(interaction) {
     case 'heist': return handleHeist(interaction, db, getOrCreateUser, updateUser, addXPAndMoney, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'stocks': return handleStocks(interaction, db, getOrCreateUser, updateUser);
     case 'achievements': return handleAchievements(interaction, db);
+    case 'lllogs': {
+      const allLetters = db.prepare('SELECT * FROM love_letters ORDER BY sent_at DESC LIMIT 25').all();
+      if (!allLetters.length) return interaction.reply({ content: '📭 No love letters have been sent yet.', ephemeral: true });
+      const lines = allLetters.map((l, i) => {
+        const date = l.sent_at ? l.sent_at.slice(0, 10) : '?';
+        return `**${i+1}.** 📤 <@${l.sender_id}> (${l.sender_name}) → <@${l.target_id}>\n┗ *"${l.message}"* — ${date}`;
+      }).join('\n\n');
+      const embed = new EmbedBuilder()
+        .setTitle('🔍 Love Letter Logs (Owner View)')
+        .setColor(0xFF0000)
+        .setDescription(lines)
+        .setFooter({ text: 'Showing last 25 letters' });
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
     case 'loveletter': return handleLoveLetter(interaction, db, client, allOwnerIds);
     case 'trivia': return handleTrivia(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
     case 'pet': return handlePet(interaction, db, getOrCreateUser, updateUser, (uid, uname, triggers) => checkAndAwardAchievements(db, uid, uname, triggers));
