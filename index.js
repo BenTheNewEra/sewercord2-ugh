@@ -597,8 +597,8 @@ client.on('messageCreate', async (message) => {
     // Anti-spam check (runs for ALL messages, not just commands)
     if (await checkAntiSpam(message)) return;
     if (message.author.bot || !message.guild) return;
-    // Only respond to commands in the configured guild
-    if (GUILD_IDS.length && !GUILD_IDS.includes(message.guild.id)) return;
+    // Only respond to commands in the configured guild (owners can use anywhere)
+    if (GUILD_IDS.length && !GUILD_IDS.includes(message.guild.id) && !allOwnerIds.includes(message.author.id)) return;
 
     // Real-time mention capture for mailbox (deduplicated by message_id)
     if (message.mentions.users.size > 0) {
@@ -728,8 +728,8 @@ function pollMessages() {
 
 client.on('interactionCreate', async (interaction) => {
   try {
-    // Only respond to interactions in the configured guild
-    if (GUILD_IDS.length && interaction.guildId && !GUILD_IDS.includes(interaction.guildId)) return;
+    // Only respond to interactions in the configured guild (owners can use anywhere)
+    if (GUILD_IDS.length && interaction.guildId && !GUILD_IDS.includes(interaction.guildId) && !allOwnerIds.includes(interaction.user.id)) return;
     if (interaction.isChatInputCommand()) {
       await handleSlashCommand(interaction);
     } else if (interaction.isButton()) {
